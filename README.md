@@ -1,1 +1,0 @@
-# kind2anki

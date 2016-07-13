@@ -14,10 +14,11 @@ Extract files to ~/Anki/addons and restart Anki.
 
 2. In a "kind2anki" window:
 
-   ![kind2anki window](/../screenshots/2kind2anki_window.png?raw=true)
+   ![kind2anki window](/../screenshots/2kind2anki_window_2.png?raw=true)
 
  * choose a deck to which you wish add words (you can create new one)
  * specify behaviour in case of duplicates
+ * uncheck "Translate words" checkbox if you wish to import words without translating them
  * specify target language. You can select from a list or enter appropriate code (you can check language codes here: https://sites.google.com/site/tomihasa/google-language-codes)
 
 3. Click Import

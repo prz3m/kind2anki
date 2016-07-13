@@ -27,6 +27,10 @@ class KindleImporter():
         self.words = self.getWordsFromDB()
         self.translated = self.translateWords()
 
+    def fetchWordsFromDBWithoutTranslation(self):
+        self.words = self.getWordsFromDB()
+        self.translated = len(self.words) * ['']
+        
     def getWordsFromDB(self):
         conn = sqlite3.connect(self.db_path)
         c = conn.cursor()

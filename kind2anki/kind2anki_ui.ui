@@ -7,7 +7,7 @@
     <x>0</x>
     <y>0</y>
     <width>376</width>
-    <height>166</height>
+    <height>193</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -54,6 +54,16 @@
           <string>Import even if existing note has same first field</string>
          </property>
         </item>
+       </widget>
+      </item>
+      <item>
+       <widget class="QCheckBox" name="doTranslate">
+        <property name="text">
+         <string>Translate words</string>
+        </property>
+        <property name="checked">
+         <bool>true</bool>
+        </property>
        </widget>
       </item>
       <item>

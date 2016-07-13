@@ -43,11 +43,18 @@ class Kind2AnkiDialog(QDialog):
             target_language = self.frm.languageSelect.currentText()
             kindleImporter = KindleImporter(db_path, target_language)
 
+            doTranslate = self.frm.doTranslate.isChecked()
             mw.progress.start(label=_("Processing..."), immediate=True)
-            showInfo("Translating words from database, it can take a while...")
-            kindleImporter.translateWordsFromDB()
+            if doTranslate:                   
+                showInfo("Translating words from database, it can take a while...")
+                kindleImporter.translateWordsFromDB()
+                
+            else:
+                showInfo("Fetching words from database, it can take a while...")
+                kindleImporter.fetchWordsFromDBWithoutTranslation()
+                
             mw.progress.finish()
-
+            
             temp_file_path = kindleImporter.createTemporaryFile()
             self.setupImporter(temp_file_path)
             self.selectDeck()

@@ -41,20 +41,22 @@ class Kind2AnkiDialog(QDialog):
             self.close()
 
             target_language = self.frm.languageSelect.currentText()
-            kindleImporter = KindleImporter(db_path, target_language)
-
+            includeUsage = self.frm.includeUsage.isChecked()
             doTranslate = self.frm.doTranslate.isChecked()
+
+            kindleImporter = KindleImporter(db_path, target_language,
+                                            includeUsage, doTranslate)
+
             mw.progress.start(label=_("Processing..."), immediate=True)
-            if doTranslate:                   
+
+            if doTranslate:
                 showInfo("Translating words from database, it can take a while...")
-                kindleImporter.translateWordsFromDB()
-                
             else:
                 showInfo("Fetching words from database, it can take a while...")
-                kindleImporter.fetchWordsFromDBWithoutTranslation()
-                
+            kindleImporter.translateWordsFromDB()
+
             mw.progress.finish()
-            
+
             temp_file_path = kindleImporter.createTemporaryFile()
             self.setupImporter(temp_file_path)
             self.selectDeck()
@@ -68,8 +70,9 @@ class Kind2AnkiDialog(QDialog):
                 txt += "\n".join(self.importer.log)
             showText(txt)
             os.remove(temp_file_path)
+
         except urllib2.URLError:
-            showInfo("No Internet connection")
+            showInfo("Cannot connect to Google Translate")
         except IOError:
             showInfo("DB file not selected, exiting")
         except sqlite3.DatabaseError:
@@ -82,6 +85,7 @@ class Kind2AnkiDialog(QDialog):
     def setupImporter(self, temp_file_path):
         self.importer = TextImporter(self.mw.col, unicode(temp_file_path))
         self.importer.initMapping()
+        self.importer.allowHTML = True
         self.importer.importMode = self.frm.importMode.currentIndex()
         self.mw.pm.profile['importMode'] = self.importer.importMode
         self.importer.delimiter = ';'

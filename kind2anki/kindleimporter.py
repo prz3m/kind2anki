@@ -6,48 +6,58 @@ import tempfile
 import codecs
 from aqt import mw
 
-# idea taken from Syntax Highlighting for Code addon, thanks!
-try:
-    # Try to find the modules in the global namespace:
-    import textblob
-    from textblob import TextBlob
-except:
-    # If not present, import modules from ./libs folder
-    sys.path.insert(0, os.path.join(mw.pm.addonFolder(), "kind2anki", "libs"))
-    import textblob
-    from textblob import TextBlob
+from translate import Translator
 
 
 class KindleImporter():
-    def __init__(self, db_path, target_language):
+    def __init__(self, db_path, target_language, includeUsage=False,
+                 doTranslate=True):
         self.db_path = db_path
         self.target_language = target_language
+        self.includeUsage = includeUsage
+        self.doTranslate = doTranslate
 
     def translateWordsFromDB(self):
-        self.words = self.getWordsFromDB()
+        self.getWordsFromDB()
         self.translated = self.translateWords()
 
     def fetchWordsFromDBWithoutTranslation(self):
-        self.words = self.getWordsFromDB()
+        self.getWordsFromDB()
         self.translated = len(self.words) * ['']
-        
+
     def getWordsFromDB(self):
         conn = sqlite3.connect(self.db_path)
         c = conn.cursor()
-        c.execute("SELECT word FROM WORDS")
-        words = c.fetchall()
-        words = [w[0] for w in words]
+        c.execute("SELECT word, id FROM WORDS")
+        words_and_ids = c.fetchall()
+        # hard limit...
+        words_and_ids = words_and_ids[:900]
+        self.words = [w[0] for w in words_and_ids]
+        self.word_keys = [w[1] for w in words_and_ids]
         conn.close()
-        return words
 
     def translateWords(self):
         translated = []
-        for word in self.words:
-            try:
-                translated.append(
-                    TextBlob(word).translate(to=self.target_language))
-            except textblob.exceptions.NotTranslated:
-                translated.append('cannot translate')
+        translator = Translator(to_lang=self.target_language)
+        conn = sqlite3.connect(self.db_path)
+        c = conn.cursor()
+        for word, word_key in zip(self.words, self.word_keys):
+            translated_word = ""
+            if self.includeUsage:
+                c.execute("SELECT usage FROM LOOKUPS WHERE word_key = ?", [word_key])
+                usages = c.fetchall()
+                for usage in usages:
+                    translated_word += usage[0].replace(";", ",") + "<hr>"
+
+            if self.doTranslate:
+                try:
+                    translated_word += translator.translate(word)
+                except textblob.exceptions.NotTranslated:
+                    translated_word += "cannot translate"
+
+            translated.append(translated_word)
+
+        conn.close()
         return translated
 
     def createTemporaryFile(self):

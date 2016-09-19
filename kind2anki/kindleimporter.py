@@ -31,7 +31,8 @@ class KindleImporter():
         c.execute("SELECT word, id FROM WORDS")
         words_and_ids = c.fetchall()
         # hard limit...
-        words_and_ids = words_and_ids[:900]
+        if self.doTranslate:
+            words_and_ids = words_and_ids[-800:]
         self.words = [w[0] for w in words_and_ids]
         self.word_keys = [w[1] for w in words_and_ids]
         conn.close()

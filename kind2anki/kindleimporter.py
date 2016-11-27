@@ -21,10 +21,6 @@ class KindleImporter():
         self.getWordsFromDB()
         self.translated = self.translateWords()
 
-    def fetchWordsFromDBWithoutTranslation(self):
-        self.getWordsFromDB()
-        self.translated = len(self.words) * ['']
-
     def getWordsFromDB(self):
         conn = sqlite3.connect(self.db_path)
         c = conn.cursor()
@@ -53,7 +49,7 @@ class KindleImporter():
             if self.doTranslate:
                 try:
                     translated_word += translator.translate(word)
-                except textblob.exceptions.NotTranslated:
+                except:
                     translated_word += "cannot translate"
 
             translated.append(translated_word)

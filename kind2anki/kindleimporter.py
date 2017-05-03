@@ -4,9 +4,22 @@ import sys
 import os
 import tempfile
 import codecs
-from aqt import mw
+import json
+import urllib2
+from urllib import quote
 
-from translate import Translator
+from aqt import mw
+from functools import partial
+
+
+def translateWord(word, target_language):
+    """
+    translates word using transltr.org free api
+    """
+    url = "http://www.transltr.org/api/translate?text=%s&to=%s"
+    r = urllib2.urlopen(url=url % (word, target_language))
+    r_json = r.read().decode('utf-8')
+    return json.loads(r_json)['translationText']
 
 
 class KindleImporter():
@@ -21,13 +34,17 @@ class KindleImporter():
         self.getWordsFromDB()
         self.translated = self.translateWords()
 
+    def fetchWordsFromDBWithoutTranslation(self):
+        self.getWordsFromDB()
+        self.translated = len(self.words) * ['']
+
     def getWordsFromDB(self):
         conn = sqlite3.connect(self.db_path)
         c = conn.cursor()
         c.execute("SELECT word, id FROM WORDS")
         words_and_ids = c.fetchall()
         # hard limit...
-        if self.doTranslate and len(words_and_ids) > 800:
+        if self.doTranslate:
             words_and_ids = words_and_ids[-800:]
         self.words = [w[0] for w in words_and_ids]
         self.word_keys = [w[1] for w in words_and_ids]
@@ -35,21 +52,23 @@ class KindleImporter():
 
     def translateWords(self):
         translated = []
-        translator = Translator(to_lang=self.target_language)
+        translate = partial(
+            translateWord, target_language=self.target_language)
         conn = sqlite3.connect(self.db_path)
         c = conn.cursor()
         for word, word_key in zip(self.words, self.word_keys):
             translated_word = ""
             if self.includeUsage:
-                c.execute("SELECT usage FROM LOOKUPS WHERE word_key = ?", [word_key])
+                c.execute("SELECT usage FROM LOOKUPS WHERE word_key = ?",
+                          [word_key])
                 usages = c.fetchall()
                 for usage in usages:
                     translated_word += usage[0].replace(";", ",") + "<hr>"
 
             if self.doTranslate:
                 try:
-                    translated_word += translator.translate(word)
-                except:
+                    translated_word += translate(word)
+                except urllib2.HTTPError:
                     translated_word += "cannot translate"
 
             translated.append(translated_word)

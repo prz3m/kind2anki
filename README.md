@@ -1,6 +1,6 @@
 # kind2anki
 
-A simple Anki add-on which imports words from Kindle's Vocabulary Builder. It translates words to chosen language using ~~Google Translate~~ http://mymemory.translated.net/.
+A simple Anki add-on which imports words from Kindle's Vocabulary Builder. It translates words to chosen language using www.transltr.org.
 
 # Installation
 
@@ -38,4 +38,4 @@ Translating big database takes a long time. If you don't use Vocabulary Builder,
 
 # Disclaimer
 
-This add-on uses ~~Google Translate~~ http://mymemory.translated.net/ as a translating engine. Some translations will be unsatisfactory and you will have to manually correct them. Also there is a limit, so the add-on translates only 800 last words.
+This add-on uses transltr.org as a translating engine. Some translations will be unsatisfactory and you will have to manually correct them.

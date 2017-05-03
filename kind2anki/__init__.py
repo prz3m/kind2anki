@@ -5,10 +5,9 @@ from aqt import mw
 from aqt.utils import showInfo, getFile, showText
 from aqt.qt import *
 from anki.importing import TextImporter
+from PyQt4.QtCore import QThread, pyqtSignal, pyqtSlot
 
 # some python libs
-import sys
-import tempfile
 import os
 import sqlite3
 import urllib2
@@ -19,6 +18,52 @@ import kind2anki_ui
 from kindleimporter import KindleImporter
 
 
+class ThreadTranslate(QThread):
+    startProgress = pyqtSignal(object, object)
+    done = pyqtSignal(object, object)
+
+    def __init__(self, args=None):
+        QThread.__init__(self)
+        self.args = args
+        self.dialog = None
+
+    def __del__(self):
+        self.wait()
+
+    def run(self):
+        self.startProgress.emit(self.dialog, "start")
+        kindleImporter = KindleImporter(*self.args)
+        kindleImporter.translateWordsFromDB()
+        temp_file_path = kindleImporter.createTemporaryFile()
+        self.done.emit(self.dialog, temp_file_path)
+
+
+@pyqtSlot(str)
+def infooo(value):
+    showInfo(value)
+
+
+# moved from class beacause it cannot work as a slot :(
+def importToAnki(dialog, temp_file_path):
+    mw.progress.finish()
+    mw.progress.start(immediate=True, label="Importing...")
+    dialog.setupImporter(temp_file_path)
+    dialog.selectDeck()
+
+    dialog.importer.run()
+    mw.progress.finish()
+
+    txt = _("Importing complete.") + "\n"
+    if dialog.importer.log:
+        txt += "\n".join(dialog.importer.log)
+    showText(txt)
+    os.remove(temp_file_path)
+
+
+def startProgressBar(dialog, nth):
+    mw.progress.start(immediate=True, label="Processing...")
+
+
 class Kind2AnkiDialog(QDialog):
     def __init__(self):
         global mw
@@ -26,6 +71,11 @@ class Kind2AnkiDialog(QDialog):
         self.mw = mw
         self.frm = kind2anki_ui.Ui_kind2ankiDialog()
         self.frm.setupUi(self)
+
+        self.t = ThreadTranslate()
+        self.t.done.connect(importToAnki)
+        self.t.startProgress.connect(startProgressBar)
+
         b = QPushButton(_("Import"))
         self.frm.buttonBox.addButton(b, QDialogButtonBox.AcceptRole)
         self.deck = DeckChooser(
@@ -35,41 +85,26 @@ class Kind2AnkiDialog(QDialog):
 
         self.exec_()
 
+    def infooo(value):
+        showInfo(value)
+
     def accept(self):
         try:
             db_path = getDBPath()
-            self.close()
 
             target_language = self.frm.languageSelect.currentText()
             includeUsage = self.frm.includeUsage.isChecked()
             doTranslate = self.frm.doTranslate.isChecked()
 
-            kindleImporter = KindleImporter(db_path, target_language,
-                                            includeUsage, doTranslate)
+            # if doTranslate:
+            #     showInfo("Translating words from database, it can take a while...")
+            # else:
+            #     showInfo("Fetching words from database, it can take a while...")
 
-            mw.progress.start(label=_("Processing..."), immediate=True)
+            self.t.dialog = self
+            self.t.args = db_path, target_language, includeUsage, doTranslate
 
-            if doTranslate:
-                showInfo("Translating words from database, it can take a while...")
-            else:
-                showInfo("Fetching words from database, it can take a while...")
-            kindleImporter.translateWordsFromDB()
-
-            mw.progress.finish()
-
-            temp_file_path = kindleImporter.createTemporaryFile()
-            self.setupImporter(temp_file_path)
-            self.selectDeck()
-
-            self.mw.progress.start(immediate=True, label="Importing...")
-            self.importer.run()
-            self.mw.progress.finish()
-
-            txt = _("Importing complete.") + "\n"
-            if self.importer.log:
-                txt += "\n".join(self.importer.log)
-            showText(txt)
-            os.remove(temp_file_path)
+            self.t.start()
 
         except urllib2.URLError:
             showInfo("Cannot connect to Google Translate")
@@ -79,7 +114,6 @@ class Kind2AnkiDialog(QDialog):
             showInfo("Selected file is not a DB")
         finally:
             self.close()
-            mw.progress.finish()
             self.mw.reset()
 
     def setupImporter(self, temp_file_path):

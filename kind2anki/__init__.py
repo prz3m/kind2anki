@@ -38,11 +38,6 @@ class ThreadTranslate(QThread):
         self.done.emit(self.dialog, temp_file_path)
 
 
-@pyqtSlot(str)
-def infooo(value):
-    showInfo(value)
-
-
 # moved from class beacause it cannot work as a slot :(
 def importToAnki(dialog, temp_file_path):
     mw.progress.finish()
@@ -84,9 +79,6 @@ class Kind2AnkiDialog(QDialog):
                     self.mw.pm.profile.get('importMode', 1))
 
         self.exec_()
-
-    def infooo(value):
-        showInfo(value)
 
     def accept(self):
         try:

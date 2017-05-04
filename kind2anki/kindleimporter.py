@@ -6,6 +6,8 @@ import tempfile
 import codecs
 import json
 import urllib2
+import datetime
+import time
 from urllib import quote
 
 from aqt import mw
@@ -24,11 +26,16 @@ def translateWord(word, target_language):
 
 class KindleImporter():
     def __init__(self, db_path, target_language, includeUsage=False,
-                 doTranslate=True):
+                 doTranslate=True, days=5):
         self.db_path = db_path
         self.target_language = target_language
         self.includeUsage = includeUsage
         self.doTranslate = doTranslate
+        self.timestamp = self.createTimestamp(days)
+
+    def createTimestamp(self, days):
+        d = (datetime.date.today() - datetime.timedelta(days=days))
+        return int(time.mktime(d.timetuple()))*1000
 
     def translateWordsFromDB(self):
         self.getWordsFromDB()
@@ -41,7 +48,8 @@ class KindleImporter():
     def getWordsFromDB(self):
         conn = sqlite3.connect(self.db_path)
         c = conn.cursor()
-        c.execute("SELECT word, id FROM WORDS")
+        c.execute("SELECT word, id FROM words WHERE timestamp > ?",
+                  (str(self.timestamp),))
         words_and_ids = c.fetchall()
         # hard limit...
         if self.doTranslate:

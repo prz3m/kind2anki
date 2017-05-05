@@ -26,16 +26,16 @@ def translateWord(word, target_language):
 
 class KindleImporter():
     def __init__(self, db_path, target_language, includeUsage=False,
-                 doTranslate=True, days=5):
+                 doTranslate=True, importDays=5):
         self.db_path = db_path
         self.target_language = target_language
         self.includeUsage = includeUsage
         self.doTranslate = doTranslate
-        self.timestamp = self.createTimestamp(days)
+        self.timestamp = self.createTimestamp(importDays) * 1000
 
     def createTimestamp(self, days):
         d = (datetime.date.today() - datetime.timedelta(days=days))
-        return int(time.mktime(d.timetuple()))*1000
+        return int(time.mktime(d.timetuple()))
 
     def translateWordsFromDB(self):
         self.getWordsFromDB()
@@ -71,7 +71,8 @@ class KindleImporter():
                           [word_key])
                 usages = c.fetchall()
                 for usage in usages:
-                    translated_word += usage[0].replace(";", ",") + "<hr>"
+                    usage = usage[0].replace(word, "<b>%s</b>" % word)
+                    translated_word += usage.replace(";", ",") + "<hr>"
 
             if self.doTranslate:
                 try:

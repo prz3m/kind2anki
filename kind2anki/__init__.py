@@ -5,12 +5,14 @@ from aqt import mw
 from aqt.utils import showInfo, getFile, showText
 from aqt.qt import *
 from anki.importing import TextImporter
-from PyQt4.QtCore import QThread, pyqtSignal, pyqtSlot
+from PyQt4.QtCore import QThread, pyqtSignal
 
 # some python libs
 import os
 import sqlite3
 import urllib2
+import datetime
+import time
 
 # addon's ui
 import kind2anki_ui
@@ -78,6 +80,9 @@ class Kind2AnkiDialog(QDialog):
         self.frm.importMode.setCurrentIndex(
                     self.mw.pm.profile.get('importMode', 1))
 
+        self.daysSinceLastRun = self.getDaysSinceLastRun()
+        self.frm.importDays.setValue(self.daysSinceLastRun)
+
         self.exec_()
 
     def accept(self):
@@ -87,6 +92,7 @@ class Kind2AnkiDialog(QDialog):
             target_language = self.frm.languageSelect.currentText()
             includeUsage = self.frm.includeUsage.isChecked()
             doTranslate = self.frm.doTranslate.isChecked()
+            importDays = self.frm.importDays.value()
 
             # if doTranslate:
             #     showInfo("Translating words from database, it can take a while...")
@@ -94,7 +100,9 @@ class Kind2AnkiDialog(QDialog):
             #     showInfo("Fetching words from database, it can take a while...")
 
             self.t.dialog = self
-            self.t.args = db_path, target_language, includeUsage, doTranslate
+            self.t.args = (
+                db_path, target_language, includeUsage, doTranslate, importDays
+                )
 
             self.t.start()
 
@@ -122,6 +130,28 @@ class Kind2AnkiDialog(QDialog):
             self.importer.model['did'] = did
             self.mw.col.models.save(self.importer.model)
         self.mw.col.decks.select(did)
+
+    def getDaysSinceLastRun(self):
+        dir_path = os.path.dirname(os.path.realpath(__file__))
+        path = os.path.join(dir_path, "lastRun.txt")
+        if os.path.isfile(path):
+            with open(path, "r") as f:
+                timestamp = int(f.read())
+            days = self.getDaysSinceTimestamp(timestamp) + 1 # round up
+        else:
+            days = 10
+        self.writeCurrentTimestampToFile(path)
+        return days
+
+    def getDaysSinceTimestamp(self, timestamp):
+        now = datetime.datetime.now()
+        previous = datetime.datetime.fromtimestamp(timestamp)
+        return (now - previous).days
+
+    def writeCurrentTimestampToFile(self, path):
+        now = datetime.datetime.now()
+        with open(path, "w") as f:
+            f.write(str(int(time.mktime(now.timetuple()))))
 
 
 def getDBPath():

@@ -13,6 +13,9 @@ import sqlite3
 import urllib2
 import datetime
 import time
+import string
+from sys import platform
+import getpass
 
 # addon's ui
 import kind2anki_ui
@@ -88,6 +91,7 @@ class Kind2AnkiDialog(QDialog):
     def accept(self):
         try:
             db_path = getDBPath()
+            self.writeCurrentTimestampToFile()  # update lastRun timestamp
 
             target_language = self.frm.languageSelect.currentText()
             includeUsage = self.frm.includeUsage.isChecked()
@@ -107,7 +111,7 @@ class Kind2AnkiDialog(QDialog):
             self.t.start()
 
         except urllib2.URLError:
-            showInfo("Cannot connect to Google Translate")
+            showInfo("Cannot connect")
         except IOError:
             showInfo("DB file not selected, exiting")
         except sqlite3.DatabaseError:
@@ -132,15 +136,14 @@ class Kind2AnkiDialog(QDialog):
         self.mw.col.decks.select(did)
 
     def getDaysSinceLastRun(self):
-        dir_path = os.path.dirname(os.path.realpath(__file__))
-        path = os.path.join(dir_path, "lastRun.txt")
+        path = self.getLastRunFilePath()
         if os.path.isfile(path):
             with open(path, "r") as f:
                 timestamp = int(f.read())
             days = self.getDaysSinceTimestamp(timestamp) + 1 # round up
         else:
             days = 10
-        self.writeCurrentTimestampToFile(path)
+
         return days
 
     def getDaysSinceTimestamp(self, timestamp):
@@ -148,20 +151,45 @@ class Kind2AnkiDialog(QDialog):
         previous = datetime.datetime.fromtimestamp(timestamp)
         return (now - previous).days
 
-    def writeCurrentTimestampToFile(self, path):
+    def writeCurrentTimestampToFile(self):
+        path = self.getLastRunFilePath()
         now = datetime.datetime.now()
         with open(path, "w") as f:
             f.write(str(int(time.mktime(now.timetuple()))))
 
+    def getLastRunFilePath(self):
+        dir_path = os.path.dirname(os.path.realpath(__file__))
+        return os.path.join(dir_path, "lastRun.txt")
+
 
 def getDBPath():
     global mw
+    vocab_path = getKindleVocabPath()
     db_path = getFile(
-        mw, _("Select db file"), None, key="Import", filter="*.db")
+        mw, _("Select db file"), None, dir=vocab_path, filter="*.db")
     if not db_path:
         raise IOError
     db_path = unicode(db_path)
     return db_path
+
+
+def getKindleVocabPath():
+    try:
+        if platform == "win32":
+            for l in string.ascii_uppercase:
+                path = r"{}:\\system\vocabulary\vocab.db".format(l)
+                if os.path.exists(path):
+                    return r"{}:\\system\vocabulary".format(l)
+        else:
+            user = getpass.getuser()
+            path = r"/media/{}/Kindle/system/vocabulary/vocab.db".format(user)
+            if os.path.exists(path):
+                return r"/media/{}/Kindle/system/vocabulary/".format(user)
+        return ""
+    except:
+        return ""
+
+
 
 action = QAction("kind2anki", mw)
 mw.connect(action, SIGNAL("triggered()"), Kind2AnkiDialog)

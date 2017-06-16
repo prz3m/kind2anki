@@ -4,10 +4,9 @@ A simple Anki add-on which imports words from Kindle's Vocabulary Builder. It tr
 
 # Installation
 
-Extract files to ~/Anki/addons and restart Anki.
+Extract files to ~/Anki/addons and restart Anki or go to  https://ankiweb.net/shared/info/1621749993 and follow instructions in Download section.
 
 # Usage
-
 1. Go to Tools -> kind2anki
  
    ![Menu](/../screenshots/1menu.png?raw=true)
@@ -18,8 +17,10 @@ Extract files to ~/Anki/addons and restart Anki.
 
  * choose a deck to which you wish add words (you can create new one)
  * specify behaviour in case of duplicates
- * uncheck "Translate words" checkbox if you wish to import words without translating them
+ * check "Include usage example" if you want to have a sentence with the word included in your flashcard
+ * uncheck "Translate words" if you wish to import words without translating them
  * specify target language. You can select from a list or enter appropriate code (you can check language codes here: http://www.transltr.org/api/getlanguagesfortranslate)
+ * change the number of days in "Import words not older than..." if you wish. The default numer is the number of days since last run of the add-on.
 
 3. Click Import
 
@@ -27,15 +28,13 @@ Extract files to ~/Anki/addons and restart Anki.
 
    ![Select DB](/../screenshots/3select_db.png?raw=true)
 
-5. Click Open and wait. Translating words can take a while (in my case, translating ~2000 words took over 5 minutes)
+5. Click Open and wait. Translating words can take several minutes (so be patient and don't restart Anki).
 6. When importing is completed, summary will appear. That's all!
 
    ![Summary](/../screenshots/4import_complete.png?raw=true)
 
-# Tips
-
-Translating big database takes a long time. If you don't use Vocabulary Builder, you can delete vocab.db from your Kindle. The next time you want to import words to Anki, the database will be smaller and importing will be faster.
+(sorry for outdated screenshots)
 
 # Disclaimer
 
-This add-on uses transltr.org as a translating engine. Some translations will be unsatisfactory and you will have to manually correct them.
+This add-on uses www.transltr.org as a translating engine. Some translations will be unsatisfactory and you will have to manually correct them.

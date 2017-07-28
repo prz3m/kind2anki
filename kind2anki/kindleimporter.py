@@ -96,6 +96,8 @@ class KindleImporter():
         return translated
 
     def createTemporaryFile(self):
+        if len(self.words) == 0:
+            return None
         path = os.path.join(tempfile.gettempdir(), "kind2anki_temp.txt")
         with codecs.open(path, "w", encoding="utf-8") as f:
             for w, t in zip(self.words, self.translated):

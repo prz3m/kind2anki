@@ -49,18 +49,22 @@ class ThreadTranslate(QThread):
 # moved from class beacause it cannot work as a slot :(
 def importToAnki(dialog, temp_file_path):
     mw.progress.finish()
-    mw.progress.start(immediate=True, label="Importing...")
-    dialog.setupImporter(temp_file_path)
-    dialog.selectDeck()
+    if temp_file_path is not None:
+        mw.progress.start(immediate=True, label="Importing...")
+        dialog.setupImporter(temp_file_path)
+        dialog.selectDeck()
 
-    dialog.importer.run()
-    mw.progress.finish()
+        dialog.importer.run()
+        mw.progress.finish()
 
-    txt = _("Importing complete.") + "\n"
-    if dialog.importer.log:
-        txt += "\n".join(dialog.importer.log)
+        txt = _("Importing complete.") + "\n"
+        if dialog.importer.log:
+            txt += "\n".join(dialog.importer.log)
+
+        os.remove(temp_file_path)
+    else:
+        txt = "Nothing to import!"
     showText(txt)
-    os.remove(temp_file_path)
 
 
 def startProgressBar(dialog, nth):
@@ -167,9 +171,15 @@ class Kind2AnkiDialog(QDialog):
 
 def getDBPath():
     global mw
-    # vocab_path = getKindleVocabPath()
+    vocab_path = getKindleVocabPath()
+    if vocab_path == "":
+        key = "Import"
+        dir = None
+    else:
+        key = None
+        dir = vocab_path
     db_path = getFile(
-        mw, _("Select db file"), None, key="Import", filter="*.db"
+        mw, _("Select db file"), None, dir=dir, key=key, filter="*.db"
     )
     if not db_path:
         raise IOError

@@ -1,6 +1,8 @@
 # kind2anki
 
-A simple Anki add-on which imports words from Kindle's Vocabulary Builder. It translates words to chosen language using www.transltr.org.
+A simple Anki add-on which imports words from Kindle's Vocabulary Builder. It translates words to chosen language using Google Translate (through [TextBlob](https://github.com/sloria/TextBlob) library).
+
+Note: Google Translate can improve its anti-abuse mechanisms in any moment, making this add-on useless. Sorry for that.
 
 # Installation
 
@@ -37,4 +39,4 @@ Extract files to ~/Anki/addons and restart Anki or go to  https://ankiweb.net/sh
 
 # Disclaimer
 
-This add-on uses www.transltr.org as a translating engine. Some translations will be unsatisfactory and you will have to manually correct them.
+This add-on uses Google Translate as a translating engine. Some translations will be unsatisfactory and you will have to manually correct them.

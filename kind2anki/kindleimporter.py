@@ -14,14 +14,27 @@ from aqt import mw
 from functools import partial
 
 
+# idea taken from Syntax Highlighting for Code addon, thanks!
+try:
+    # Try to find the modules in the global namespace:
+    import textblob
+    from textblob import TextBlob
+except:
+    # If not present, import modules from ./libs folder
+    sys.path.insert(0, os.path.join(mw.pm.addonFolder(), "kind2anki", "libs"))
+    import textblob
+    from textblob import TextBlob
+
+
 def translateWord(word, target_language):
-    """
-    translates word using transltr.org free api
-    """
-    url = "http://www.transltr.org/api/translate?text=%s&to=%s"
-    r = urllib2.urlopen(url=url % (word, target_language))
-    r_json = r.read().decode('utf-8')
-    return json.loads(r_json)['translationText']
+    return unicode(TextBlob(word).translate(to=target_language))
+    # """
+    # translates word using transltr.org free api
+    # """
+    # url = "http://www.transltr.org/api/translate?text=%s&to=%s"
+    # r = urllib2.urlopen(url=url % (word, target_language))
+    # r_json = r.read().decode('utf-8')
+    # return json.loads(r_json)['translationText']
 
 
 class KindleImporter():
@@ -51,9 +64,6 @@ class KindleImporter():
         c.execute("SELECT word, id FROM words WHERE timestamp > ?",
                   (str(self.timestamp),))
         words_and_ids = c.fetchall()
-        # hard limit...
-        if self.doTranslate:
-            words_and_ids = words_and_ids[-800:]
         self.words = [w[0] for w in words_and_ids]
         self.word_keys = [w[1] for w in words_and_ids]
         conn.close()
@@ -77,7 +87,7 @@ class KindleImporter():
             if self.doTranslate:
                 try:
                     translated_word += translate(word)
-                except urllib2.HTTPError:
+                except (urllib2.HTTPError, textblob.exceptions.NotTranslated):
                     translated_word += "cannot translate"
 
             translated.append(translated_word)

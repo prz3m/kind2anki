@@ -9,6 +9,7 @@ from PyQt4.QtCore import QThread, pyqtSignal
 
 # some python libs
 import os
+import sys
 import sqlite3
 import urllib2
 import datetime
@@ -21,6 +22,8 @@ import getpass
 import kind2anki_ui
 
 from kindleimporter import KindleImporter
+
+sys.path.insert(0, os.path.join(mw.pm.addonFolder(), "kind2anki", "libs"))
 
 
 class ThreadTranslate(QThread):
@@ -164,9 +167,10 @@ class Kind2AnkiDialog(QDialog):
 
 def getDBPath():
     global mw
-    vocab_path = getKindleVocabPath()
+    # vocab_path = getKindleVocabPath()
     db_path = getFile(
-        mw, _("Select db file"), None, dir=vocab_path, filter="*.db")
+        mw, _("Select db file"), None, key="Import", filter="*.db"
+    )
     if not db_path:
         raise IOError
     db_path = unicode(db_path)

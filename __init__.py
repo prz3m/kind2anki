@@ -23,9 +23,9 @@ sys.path.insert(0, os.path.join(mw.pm.addonFolder(), "kind2anki", "kind2anki"))
 sys.path.insert(0, os.path.join(mw.pm.addonFolder(), "kind2anki", "kind2anki", "libs"))
 
 # addon's ui
-import kind2anki_ui
+from .kind2anki import kind2anki_ui
 
-from kindleimporter import KindleImporter
+from .kind2anki.kindleimporter import KindleImporter
 
 
 class ThreadTranslate(QThread):

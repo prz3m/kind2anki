@@ -20,8 +20,8 @@ try:
     from textblob import TextBlob
 except:
     # If not present, import modules from ./libs folder
-    sys.path.insert(0, os.path.join(mw.pm.addonFolder(), "kind2anki", "libs"))
-    sys.path.insert(0, os.path.join(mw.pm.addonFolder(), "kind2anki", "kind2anki", "libs"))
+    dir_path = os.path.dirname(os.path.realpath(__file__))
+    sys.path.insert(0, os.path.join(dir_path, "libs"))
     from textblob import TextBlob
 
 

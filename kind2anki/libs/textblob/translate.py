@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 """
 Translator module that uses the Google Translate API.
+
 Adapted from Terry Yin's google-translate-python.
 Language detection added by Steven Loria.
 """
@@ -18,6 +19,7 @@ from textblob.exceptions import TranslatorError, NotTranslated
 class Translator(object):
 
     """A language translator and detector.
+
     Usage:
     ::
         >>> from textblob.translate import Translator
@@ -96,8 +98,7 @@ def _unescape(text):
     """Unescape unicode character codes within a string.
     """
     pattern = r'\\{1,2}u[0-9a-fA-F]{4}'
-    decode = lambda x: codecs.getdecoder('unicode_escape')(x.group())[0]
-    return re.sub(pattern, decode, text)
+    return re.sub(pattern, lambda x: codecs.getdecoder('unicode_escape')(x.group())[0], text)
 
 
 def _calculate_tk(source):

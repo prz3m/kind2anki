@@ -131,8 +131,7 @@ class Word(unicode):
     def lemma(self):
         """Return the lemma of this word using Wordnet's morphy function.
         """
-        tag = _penn_to_wordnet(self.pos_tag) if (self.pos_tag is not None) else None
-        return self.lemmatize(pos=tag)
+        return self.lemmatize(pos=self.pos_tag)
 
     @requires_nltk_corpus
     def lemmatize(self, pos=None):
@@ -144,9 +143,26 @@ class Word(unicode):
         .. versionadded:: 0.8.1
         """
         if pos is None:
-            pos = _wordnet.NOUN
+            tag = _wordnet.NOUN
+        elif pos in _wordnet._FILEMAP.keys():
+            tag = pos
+        else:
+            tag = _penn_to_wordnet(pos)
         lemmatizer = nltk.stem.WordNetLemmatizer()
-        return lemmatizer.lemmatize(self.string, pos)
+        return lemmatizer.lemmatize(self.string, tag)
+
+    PorterStemmer = nltk.stem.porter.PorterStemmer()
+    LancasterStemmer = nltk.stem.lancaster.LancasterStemmer()
+    SnowballStemmer = nltk.stem.snowball.SnowballStemmer("english")
+
+    #added 'stemmer' on lines of lemmatizer
+    #based on nltk
+    def stem(self, stemmer=PorterStemmer):
+        """Stem a word using various NLTK stemmers. (Default: Porter Stemmer)
+
+        .. versionadded:: 0.12.0
+        """
+        return stemmer.stem(self.string)
 
     @cached_property
     def synsets(self):
@@ -199,30 +215,37 @@ class WordList(list):
         """Initialize a WordList. Takes a collection of strings as
         its only argument.
         """
-        self._collection = [Word(w) for w in collection]
-        super(WordList, self).__init__(self._collection)
+        super(WordList, self).__init__([Word(w) for w in collection])
 
     def __str__(self):
-        return str(self._collection)
+        """Returns a string representation for printing."""
+        return super(WordList, self).__repr__()
 
     def __repr__(self):
         """Returns a string representation for debugging."""
         class_name = self.__class__.__name__
-        return '{cls}({lst})'.format(cls=class_name, lst=repr(self._collection))
+        return '{cls}({lst})'.format(cls=class_name, lst=super(WordList, self).__repr__())
 
     def __getitem__(self, key):
         """Returns a string at the given index."""
+        item = super(WordList, self).__getitem__(key)
         if isinstance(key, slice):
-            return self.__class__(self._collection[key])
+            return self.__class__(item)
         else:
-            return self._collection[key]
+            return item
 
     def __getslice__(self, i, j):
         # This is included for Python 2.* compatibility
-        return self.__class__(self._collection[i:j])
+        return self.__class__(super(WordList, self).__getslice__(i, j))
 
-    def __iter__(self):
-        return iter(self._collection)
+    def __setitem__(self, index, obj):
+        """Places object at given index, replacing existing item. If the object
+        is a string, inserts a :class:`Word <Word>` object.
+        """
+        if isinstance(obj, basestring):
+            super(WordList, self).__setitem__(index, Word(obj))
+        else:
+            super(WordList, self).__setitem__(index, obj)
 
     def count(self, strg, case_sensitive=False, *args, **kwargs):
         """Get the count of a word or phrase `s` within this WordList.
@@ -233,24 +256,23 @@ class WordList(list):
         if not case_sensitive:
             return [word.lower() for word in self].count(strg.lower(), *args,
                     **kwargs)
-        return self._collection.count(strg, *args, **kwargs)
+        return super(WordList, self).count(strg, *args, **kwargs)
 
     def append(self, obj):
         """Append an object to end. If the object is a string, appends a
         :class:`Word <Word>` object.
         """
         if isinstance(obj, basestring):
-            return self._collection.append(Word(obj))
+            super(WordList, self).append(Word(obj))
         else:
-            return self._collection.append(obj)
+            super(WordList, self).append(obj)
 
     def extend(self, iterable):
         """Extend WordList by appending elements from ``iterable``. If an element
         is a string, appends a :class:`Word <Word>` object.
         """
-        [self._collection.append(Word(e) if isinstance(e, basestring) else e)
-            for e in iterable]
-        return self
+        for e in iterable:
+            self.append(e)
 
     def upper(self):
         """Return a new WordList with each word upper-cased."""
@@ -271,6 +293,10 @@ class WordList(list):
     def lemmatize(self):
         """Return the lemma of each word in this WordList."""
         return self.__class__([word.lemmatize() for word in self])
+
+    def stem(self, *args, **kwargs):
+        """Return the stem for each word in this WordList."""
+        return self.__class__([word.stem(*args, **kwargs) for word in self])
 
 
 def _validated_param(obj, name, base_class, default, base_class_name=None):
@@ -406,6 +432,19 @@ class BaseBlob(StringlikeMixin, BlobComparableMixin):
         return self.analyzer.analyze(self.raw)
 
     @cached_property
+    def sentiment_assessments(self):
+        """Return a tuple of form (polarity, subjectivity, assessments ) where
+        polarity is a float within the range [-1.0, 1.0], subjectivity is a
+        float within the range [0.0, 1.0] where 0.0 is very objective and 1.0
+        is very subjective, and assessments is a list of polarity and
+        subjectivity scores for the assessed tokens.
+
+        :rtype: namedtuple of the form ``Sentiment(polarity, subjectivity,
+        assessments)``
+        """
+        return self.analyzer.analyze(self.raw, keep_assessments=True)
+
+    @cached_property
     def polarity(self):
         """Return the polarity score as a float within the range [-1.0, 1.0]
 
@@ -441,9 +480,12 @@ class BaseBlob(StringlikeMixin, BlobComparableMixin):
 
         :rtype: list of tuples
         """
-        return [(Word(word, pos_tag=t), unicode(t))
-                for word, t in self.pos_tagger.tag(self.raw)
-                if not PUNCTUATION_REGEX.match(unicode(t))]
+        if isinstance(self, TextBlob):
+            return [val for sublist in [s.pos_tags for s in self.sentences] for val in sublist]
+        else:
+            return [(Word(word, pos_tag=t), unicode(t))
+                    for word, t in self.pos_tagger.tag(self)
+                    if not PUNCTUATION_REGEX.match(unicode(t))]
 
     tags = pos_tags
 
@@ -474,7 +516,7 @@ class BaseBlob(StringlikeMixin, BlobComparableMixin):
         """
         if n <= 0:
             return []
-        grams = [WordList(self.words[i:i+n])
+        grams = [WordList(self.words[i:i + n])
                             for i in range(len(self.words) - n + 1)]
         return grams
 

@@ -191,15 +191,15 @@ def getDBPath():
 
 def getKindleVocabPath():
     try:
-        if platform.system == "Windows":
+        if platform == "win32":
             for l in string.ascii_uppercase:
                 path = r"{}:\\system\vocabulary\vocab.db".format(l)
                 if os.path.exists(path):
                     return r"{}:\\system\vocabulary".format(l)
-        elif platform.system == "Darwin":
+        elif platform == "darwin":
             path = "/Volumes/Kindle/system/vocabulary/vocab.db"
             if os.path.exists(path):
-                return path
+                return "/Volumes/Kindle/system/vocabulary"
         else:
             user = getpass.getuser()
             path = r"/media/{}/Kindle/system/vocabulary/vocab.db".format(user)

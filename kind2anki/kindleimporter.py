@@ -5,10 +5,10 @@ import os
 import tempfile
 import codecs
 import json
-import urllib2
+import urllib
 import datetime
 import time
-from urllib import quote
+from urllib.parse import quote
 
 from aqt import mw
 from functools import partial
@@ -17,17 +17,16 @@ from functools import partial
 # idea taken from Syntax Highlighting for Code addon, thanks!
 try:
     # Try to find the modules in the global namespace:
-    import textblob
     from textblob import TextBlob
 except:
     # If not present, import modules from ./libs folder
     sys.path.insert(0, os.path.join(mw.pm.addonFolder(), "kind2anki", "libs"))
-    import textblob
+    sys.path.insert(0, os.path.join(mw.pm.addonFolder(), "kind2anki", "kind2anki", "libs"))
     from textblob import TextBlob
 
 
 def translateWord(word, target_language):
-    return unicode(TextBlob(word).translate(to=target_language))
+    return str(TextBlob(word).translate(to=target_language))
     # """
     # translates word using transltr.org free api
     # """
@@ -87,7 +86,7 @@ class KindleImporter():
             if self.doTranslate:
                 try:
                     translated_word += translate(word)
-                except (urllib2.HTTPError, textblob.exceptions.NotTranslated):
+                except:
                     translated_word += "cannot translate"
 
             translated.append(translated_word)

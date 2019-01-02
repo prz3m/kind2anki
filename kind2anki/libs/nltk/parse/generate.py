@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 # Natural Language Toolkit: Generating from a CFG
 #
-# Copyright (C) 2001-2016 NLTK Project
+# Copyright (C) 2001-2019 NLTK Project
 # Author: Steven Bird <stevenbird1@gmail.com>
 #         Peter Ljunglöf <peter.ljunglof@heatherleaf.se>
 # URL: <http://nltk.org/>
@@ -36,22 +36,34 @@ def generate(grammar, start=None, depth=None, n=None):
 
     return iter
 
+
 def _generate_all(grammar, items, depth):
     if items:
-        for frag1 in _generate_one(grammar, items[0], depth):
-            for frag2 in _generate_all(grammar, items[1:], depth):
-                yield frag1 + frag2
+        try:
+            for frag1 in _generate_one(grammar, items[0], depth):
+                for frag2 in _generate_all(grammar, items[1:], depth):
+                    yield frag1 + frag2
+        except RuntimeError as _error:
+            if _error.message == "maximum recursion depth exceeded":
+                # Helpful error message while still showing the recursion stack.
+                raise RuntimeError(
+                    "The grammar has rule(s) that yield infinite recursion!!"
+                )
+            else:
+                raise
     else:
         yield []
+
 
 def _generate_one(grammar, item, depth):
     if depth > 0:
         if isinstance(item, Nonterminal):
             for prod in grammar.productions(lhs=item):
-                for frag in _generate_all(grammar, prod.rhs(), depth-1):
+                for frag in _generate_all(grammar, prod.rhs(), depth - 1):
                     yield frag
         else:
             yield [item]
+
 
 demo_grammar = """
   S -> NP VP
@@ -63,6 +75,7 @@ demo_grammar = """
   P -> 'in' | 'with'
 """
 
+
 def demo(N=23):
     from nltk.grammar import CFG
 
@@ -71,6 +84,7 @@ def demo(N=23):
     grammar = CFG.fromstring(demo_grammar)
     for n, sent in enumerate(generate(grammar, n=N), 1):
         print('%3d. %s' % (n, ' '.join(sent)))
+
 
 if __name__ == '__main__':
     demo()

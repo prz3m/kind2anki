@@ -1,9 +1,10 @@
 # -*- coding: utf-8 -*-
 # Natural Language Toolkit: Tokenizers
 #
-# Copyright (C) 2001-2016 NLTK Project
+# Copyright (C) 2001-2019 NLTK Project
 # Author: Edward Loper <edloper@gmail.com>
 #         Steven Bird <stevenbird1@gmail.com> (minor additions)
+# Contributors: matthewmc, clouds56
 # URL: <http://nltk.org/>
 # For license information, see LICENSE.TXT
 
@@ -59,22 +60,35 @@ tokenization, see the other methods provided in this package.
 For further information, please see Chapter 3 of the NLTK book.
 """
 
-from nltk.data              import load
-from nltk.tokenize.simple   import (SpaceTokenizer, TabTokenizer, LineTokenizer,
-                                    line_tokenize)
-from nltk.tokenize.regexp   import (RegexpTokenizer, WhitespaceTokenizer,
-                                    BlanklineTokenizer, WordPunctTokenizer,
-                                    wordpunct_tokenize, regexp_tokenize,
-                                    blankline_tokenize)
-from nltk.tokenize.punkt    import PunktSentenceTokenizer
-from nltk.tokenize.sexpr    import SExprTokenizer, sexpr_tokenize
-from nltk.tokenize.treebank import TreebankWordTokenizer
-from nltk.tokenize.stanford import StanfordTokenizer
+import re
+
+from nltk.data import load
+from nltk.tokenize.casual import TweetTokenizer, casual_tokenize
+from nltk.tokenize.mwe import MWETokenizer
+from nltk.tokenize.punkt import PunktSentenceTokenizer
+from nltk.tokenize.regexp import (
+    RegexpTokenizer,
+    WhitespaceTokenizer,
+    BlanklineTokenizer,
+    WordPunctTokenizer,
+    wordpunct_tokenize,
+    regexp_tokenize,
+    blankline_tokenize,
+)
+from nltk.tokenize.repp import ReppTokenizer
+from nltk.tokenize.sexpr import SExprTokenizer, sexpr_tokenize
+from nltk.tokenize.simple import (
+    SpaceTokenizer,
+    TabTokenizer,
+    LineTokenizer,
+    line_tokenize,
+)
 from nltk.tokenize.texttiling import TextTilingTokenizer
-from nltk.tokenize.casual   import (TweetTokenizer, casual_tokenize)
-from nltk.tokenize.mwe      import MWETokenizer
-from nltk.tokenize.util     import string_span_tokenize, regexp_span_tokenize
+from nltk.tokenize.toktok import ToktokTokenizer
+from nltk.tokenize.treebank import TreebankWordTokenizer
+from nltk.tokenize.util import string_span_tokenize, regexp_span_tokenize
 from nltk.tokenize.stanford_segmenter import StanfordSegmenter
+
 
 # Standard sentence tokenizer.
 def sent_tokenize(text, language='english'):
@@ -90,19 +104,43 @@ def sent_tokenize(text, language='english'):
     tokenizer = load('tokenizers/punkt/{0}.pickle'.format(language))
     return tokenizer.tokenize(text)
 
+
 # Standard word tokenizer.
-_treebank_word_tokenize = TreebankWordTokenizer().tokenize
-def word_tokenize(text, language='english'):
+_treebank_word_tokenizer = TreebankWordTokenizer()
+
+# See discussion on https://github.com/nltk/nltk/pull/1437
+# Adding to TreebankWordTokenizer, nltk.word_tokenize now splits on
+# - chervon quotes u'\xab' and u'\xbb' .
+# - unicode quotes u'\u2018', u'\u2019', u'\u201c' and u'\u201d'
+# See https://github.com/nltk/nltk/issues/1995#issuecomment-376741608
+# Also, behavior of splitting on clitics now follows Stanford CoreNLP
+# - clitics covered (?!re|ve|ll|m|t|s|d)(\w)\b
+improved_open_quote_regex = re.compile(u'([«“‘„]|[`]+)', re.U)
+improved_open_single_quote_regex = re.compile(r"(?i)(\')(?!re|ve|ll|m|t|s|d)(\w)\b", re.U)
+improved_close_quote_regex = re.compile(u'([»”’])', re.U)
+improved_punct_regex = re.compile(r'([^\.])(\.)([\]\)}>"\'' u'»”’ ' r']*)\s*$', re.U)
+_treebank_word_tokenizer.STARTING_QUOTES.insert(0, (improved_open_quote_regex, r' \1 '))
+_treebank_word_tokenizer.STARTING_QUOTES.append((improved_open_single_quote_regex, r'\1 \2'))
+_treebank_word_tokenizer.ENDING_QUOTES.insert(0, (improved_close_quote_regex, r' \1 '))
+_treebank_word_tokenizer.PUNCTUATION.insert(0, (improved_punct_regex, r'\1 \2 \3 '))
+
+
+def word_tokenize(text, language='english', preserve_line=False):
     """
     Return a tokenized copy of *text*,
     using NLTK's recommended word tokenizer
-    (currently :class:`.TreebankWordTokenizer`
+    (currently an improved :class:`.TreebankWordTokenizer`
     along with :class:`.PunktSentenceTokenizer`
     for the specified language).
 
-    :param text: text to split into sentences
+    :param text: text to split into words
+    :type text: str
     :param language: the model name in the Punkt corpus
+    :type language: str
+    :param preserve_line: An option to keep the preserve the sentence and not sentence tokenize it.
+    :type preserve_line: bool
     """
-    return [token for sent in sent_tokenize(text, language)
-            for token in _treebank_word_tokenize(sent)]
-
+    sentences = [text] if preserve_line else sent_tokenize(text, language)
+    return [
+        token for sent in sentences for token in _treebank_word_tokenizer.tokenize(sent)
+    ]

@@ -1,20 +1,24 @@
 # Natural Language Toolkit: NomBank Corpus Reader
 #
-# Copyright (C) 2001-2016 NLTK Project
+# Copyright (C) 2001-2019 NLTK Project
 # Authors: Paul Bedaride <paul.bedaride@gmail.com>
 #          Edward Loper <edloper@gmail.com>
 # URL: <http://nltk.org/>
 # For license information, see LICENSE.TXT
 
 from __future__ import unicode_literals
+from xml.etree import ElementTree
+from functools import total_ordering
+
+from six import string_types
 
 from nltk.tree import Tree
-from xml.etree import ElementTree
 from nltk.internals import raise_unorderable_types
-from nltk.compat import total_ordering, python_2_unicode_compatible, string_types
+from nltk.compat import python_2_unicode_compatible
 
 from nltk.corpus.reader.util import *
 from nltk.corpus.reader.api import *
+
 
 class NombankCorpusReader(CorpusReader):
     """
@@ -29,9 +33,17 @@ class NombankCorpusReader(CorpusReader):
     each "roleset", the frameset file provides descriptions of the
     argument roles, along with examples.
     """
-    def __init__(self, root, nomfile, framefiles='',
-                 nounsfile=None, parse_fileid_xform=None,
-                 parse_corpus=None, encoding='utf8'):
+
+    def __init__(
+        self,
+        root,
+        nomfile,
+        framefiles='',
+        nounsfile=None,
+        parse_fileid_xform=None,
+        parse_corpus=None,
+        encoding='utf8',
+    ):
         """
         :param root: The root directory for this corpus.
         :param nomfile: The name of the file containing the predicate-
@@ -51,8 +63,7 @@ class NombankCorpusReader(CorpusReader):
             framefiles = find_corpus_fileids(root, framefiles)
         framefiles = list(framefiles)
         # Initialze the corpus reader.
-        CorpusReader.__init__(self, root, [nomfile, nounsfile] + framefiles,
-                              encoding)
+        CorpusReader.__init__(self, root, [nomfile, nounsfile] + framefiles, encoding)
 
         # Record our frame fileids & nom file.
         self._nomfile = nomfile
@@ -65,8 +76,10 @@ class NombankCorpusReader(CorpusReader):
         """
         :return: the text contents of the given fileids, as a single string.
         """
-        if fileids is None: fileids = self._fileids
-        elif isinstance(fileids, compat.string_types): fileids = [fileids]
+        if fileids is None:
+            fileids = self._fileids
+        elif isinstance(fileids, string_types):
+            fileids = [fileids]
         return concat([self.open(f).read() for f in fileids])
 
     def instances(self, baseform=None):
@@ -76,31 +89,36 @@ class NombankCorpusReader(CorpusReader):
         """
         kwargs = {}
         if baseform is not None:
-            kwargs['instance_filter'] = lambda inst: inst.baseform==baseform
-        return StreamBackedCorpusView(self.abspath(self._nomfile),
-                                      lambda stream: self._read_instance_block(stream, **kwargs),
-                                      encoding=self.encoding(self._nomfile))
+            kwargs['instance_filter'] = lambda inst: inst.baseform == baseform
+        return StreamBackedCorpusView(
+            self.abspath(self._nomfile),
+            lambda stream: self._read_instance_block(stream, **kwargs),
+            encoding=self.encoding(self._nomfile),
+        )
 
     def lines(self):
         """
         :return: a corpus view that acts as a list of strings, one for
         each line in the predicate-argument annotation file.
         """
-        return StreamBackedCorpusView(self.abspath(self._nomfile),
-                                      read_line_block,
-                                      encoding=self.encoding(self._nomfile))
+        return StreamBackedCorpusView(
+            self.abspath(self._nomfile),
+            read_line_block,
+            encoding=self.encoding(self._nomfile),
+        )
 
     def roleset(self, roleset_id):
         """
         :return: the xml description for the given roleset.
         """
         baseform = roleset_id.split('.')[0]
-        baseform = baseform.replace('perc-sign','%')
-        baseform = baseform.replace('oneslashonezero', '1/10').replace('1/10','1-slash-10')
+        baseform = baseform.replace('perc-sign', '%')
+        baseform = baseform.replace('oneslashonezero', '1/10').replace(
+            '1/10', '1-slash-10'
+        )
         framefile = 'frames/%s.xml' % baseform
         if framefile not in self._framefiles:
-            raise ValueError('Frameset file for %s not found' %
-                             roleset_id)
+            raise ValueError('Frameset file for %s not found' % roleset_id)
 
         # n.b.: The encoding for XML fileids is specified by the file
         # itself; so we ignore self._encoding here.
@@ -108,9 +126,7 @@ class NombankCorpusReader(CorpusReader):
         for roleset in etree.findall('predicate/roleset'):
             if roleset.attrib['id'] == roleset_id:
                 return roleset
-        else:
-            raise ValueError('Roleset %s not found in %s' %
-                             (roleset_id, framefile))
+        raise ValueError('Roleset %s not found in %s' % (roleset_id, framefile))
 
     def rolesets(self, baseform=None):
         """
@@ -119,8 +135,7 @@ class NombankCorpusReader(CorpusReader):
         if baseform is not None:
             framefile = 'frames/%s.xml' % baseform
             if framefile not in self._framefiles:
-                raise ValueError('Frameset file for %s not found' %
-                                 baseform)
+                raise ValueError('Frameset file for %s not found' % baseform)
             framefiles = [framefile]
         else:
             framefiles = self._framefiles
@@ -138,9 +153,11 @@ class NombankCorpusReader(CorpusReader):
         :return: a corpus view that acts as a list of all noun lemmas
         in this corpus (from the nombank.1.0.words file).
         """
-        return StreamBackedCorpusView(self.abspath(self._nounsfile),
-                                      read_line_block,
-                                      encoding=self.encoding(self._nounsfile))
+        return StreamBackedCorpusView(
+            self.abspath(self._nounsfile),
+            read_line_block,
+            encoding=self.encoding(self._nounsfile),
+        )
 
     def _read_instance_block(self, stream, instance_filter=lambda inst: True):
         block = []
@@ -150,22 +167,33 @@ class NombankCorpusReader(CorpusReader):
             line = stream.readline().strip()
             if line:
                 inst = NombankInstance.parse(
-                    line, self._parse_fileid_xform,
-                    self._parse_corpus)
+                    line, self._parse_fileid_xform, self._parse_corpus
+                )
                 if instance_filter(inst):
                     block.append(inst)
 
         return block
 
+
 ######################################################################
-#{ Nombank Instance & related datatypes
+# { Nombank Instance & related datatypes
 ######################################################################
+
 
 @python_2_unicode_compatible
 class NombankInstance(object):
-
-    def __init__(self, fileid, sentnum, wordnum, baseform, sensenumber,
-                 predicate, predid, arguments, parse_corpus=None):
+    def __init__(
+        self,
+        fileid,
+        sentnum,
+        wordnum,
+        baseform,
+        sensenumber,
+        predicate,
+        predid,
+        arguments,
+        parse_corpus=None,
+    ):
 
         self.fileid = fileid
         """The name of the file containing the parse tree for this
@@ -211,27 +239,41 @@ class NombankInstance(object):
         look up information about the roleset."""
         r = self.baseform.replace('%', 'perc-sign')
         r = r.replace('1/10', '1-slash-10').replace('1-slash-10', 'oneslashonezero')
-        return '%s.%s'%(r, self.sensenumber)
+        return '%s.%s' % (r, self.sensenumber)
 
     def __repr__(self):
-        return ('<NombankInstance: %s, sent %s, word %s>' %
-                (self.fileid, self.sentnum, self.wordnum))
+        return '<NombankInstance: %s, sent %s, word %s>' % (
+            self.fileid,
+            self.sentnum,
+            self.wordnum,
+        )
 
     def __str__(self):
-        s = '%s %s %s %s %s' % (self.fileid, self.sentnum, self.wordnum,
-                                self.baseform, self.sensenumber)
+        s = '%s %s %s %s %s' % (
+            self.fileid,
+            self.sentnum,
+            self.wordnum,
+            self.baseform,
+            self.sensenumber,
+        )
         items = self.arguments + ((self.predicate, 'rel'),)
         for (argloc, argid) in sorted(items):
             s += ' %s-%s' % (argloc, argid)
         return s
 
     def _get_tree(self):
-        if self.parse_corpus is None: return None
-        if self.fileid not in self.parse_corpus.fileids(): return None
+        if self.parse_corpus is None:
+            return None
+        if self.fileid not in self.parse_corpus.fileids():
+            return None
         return self.parse_corpus.parsed_sents(self.fileid)[self.sentnum]
-    tree = property(_get_tree, doc="""
+
+    tree = property(
+        _get_tree,
+        doc="""
         The parse tree corresponding to this instance, or None if
-        the corresponding tree is not available.""")
+        the corresponding tree is not available.""",
+    )
 
     @staticmethod
     def parse(s, parse_fileid_xform=None, parse_corpus=None):
@@ -240,11 +282,10 @@ class NombankInstance(object):
             raise ValueError('Badly formatted nombank line: %r' % s)
 
         # Divide the line into its basic pieces.
-        (fileid, sentnum, wordnum,
-          baseform, sensenumber) = pieces[:5]
+        (fileid, sentnum, wordnum, baseform, sensenumber) = pieces[:5]
 
         args = pieces[5:]
-        rel = [args.pop(i) for i,p in enumerate(args) if '-rel' in p]
+        rel = [args.pop(i) for i, p in enumerate(args) if '-rel' in p]
         if len(rel) != 1:
             raise ValueError('Badly formatted nombank line: %r' % s)
 
@@ -265,11 +306,21 @@ class NombankInstance(object):
         arguments = []
         for arg in args:
             argloc, argid = arg.split('-', 1)
-            arguments.append( (NombankTreePointer.parse(argloc), argid) )
+            arguments.append((NombankTreePointer.parse(argloc), argid))
 
         # Put it all together.
-        return NombankInstance(fileid, sentnum, wordnum, baseform, sensenumber,
-                               predicate, predid, arguments, parse_corpus)
+        return NombankInstance(
+            fileid,
+            sentnum,
+            wordnum,
+            baseform,
+            sensenumber,
+            predicate,
+            predid,
+            arguments,
+            parse_corpus,
+        )
+
 
 class NombankPointer(object):
     """
@@ -285,9 +336,11 @@ class NombankPointer(object):
       chains in a tree.  It consists of a sequence of pieces, which
       can be ``NombankTreePointer`` or ``NombankSplitTreePointer`` pointers.
     """
+
     def __init__(self):
         if self.__class__ == NombankPointer:
             raise NotImplementedError()
+
 
 @python_2_unicode_compatible
 class NombankChainTreePointer(NombankPointer):
@@ -299,11 +352,15 @@ class NombankChainTreePointer(NombankPointer):
 
     def __str__(self):
         return '*'.join('%s' % p for p in self.pieces)
+
     def __repr__(self):
         return '<NombankChainTreePointer: %s>' % self
+
     def select(self, tree):
-        if tree is None: raise ValueError('Parse tree not avaialable')
+        if tree is None:
+            raise ValueError('Parse tree not avaialable')
         return Tree('*CHAIN*', [p.select(tree) for p in self.pieces])
+
 
 @python_2_unicode_compatible
 class NombankSplitTreePointer(NombankPointer):
@@ -314,11 +371,15 @@ class NombankSplitTreePointer(NombankPointer):
 
     def __str__(self):
         return ','.join('%s' % p for p in self.pieces)
+
     def __repr__(self):
         return '<NombankSplitTreePointer: %s>' % self
+
     def select(self, tree):
-        if tree is None: raise ValueError('Parse tree not avaialable')
+        if tree is None:
+            raise ValueError('Parse tree not avaialable')
         return Tree('*SPLIT*', [p.select(tree) for p in self.pieces])
+
 
 @total_ordering
 @python_2_unicode_compatible
@@ -328,6 +389,7 @@ class NombankTreePointer(NombankPointer):
     wordnum:height,
 
     """
+
     def __init__(self, wordnum, height):
         self.wordnum = wordnum
         self.height = height
@@ -337,18 +399,21 @@ class NombankTreePointer(NombankPointer):
         # Deal with chains (xx*yy*zz)
         pieces = s.split('*')
         if len(pieces) > 1:
-            return NombankChainTreePointer([NombankTreePointer.parse(elt)
-                                              for elt in pieces])
+            return NombankChainTreePointer(
+                [NombankTreePointer.parse(elt) for elt in pieces]
+            )
 
         # Deal with split args (xx,yy,zz)
         pieces = s.split(',')
         if len(pieces) > 1:
-            return NombankSplitTreePointer([NombankTreePointer.parse(elt)
-                                             for elt in pieces])
+            return NombankSplitTreePointer(
+                [NombankTreePointer.parse(elt) for elt in pieces]
+            )
 
         # Deal with normal pointers.
         pieces = s.split(':')
-        if len(pieces) != 2: raise ValueError('bad nombank pointer %r' % s)
+        if len(pieces) != 2:
+            raise ValueError('bad nombank pointer %r' % s)
         return NombankTreePointer(int(pieces[0]), int(pieces[1]))
 
     def __str__(self):
@@ -358,21 +423,19 @@ class NombankTreePointer(NombankPointer):
         return 'NombankTreePointer(%d, %d)' % (self.wordnum, self.height)
 
     def __eq__(self, other):
-        while isinstance(other, (NombankChainTreePointer,
-                                 NombankSplitTreePointer)):
+        while isinstance(other, (NombankChainTreePointer, NombankSplitTreePointer)):
             other = other.pieces[0]
 
         if not isinstance(other, NombankTreePointer):
             return self is other
 
-        return (self.wordnum == other.wordnum and self.height == other.height)
+        return self.wordnum == other.wordnum and self.height == other.height
 
     def __ne__(self, other):
         return not self == other
 
     def __lt__(self, other):
-        while isinstance(other, (NombankChainTreePointer,
-                                 NombankSplitTreePointer)):
+        while isinstance(other, (NombankChainTreePointer, NombankSplitTreePointer)):
             other = other.pieces[0]
 
         if not isinstance(other, NombankTreePointer):
@@ -381,7 +444,8 @@ class NombankTreePointer(NombankPointer):
         return (self.wordnum, -self.height) < (other.wordnum, -other.height)
 
     def select(self, tree):
-        if tree is None: raise ValueError('Parse tree not avaialable')
+        if tree is None:
+            raise ValueError('Parse tree not avaialable')
         return tree[self.treepos(tree)]
 
     def treepos(self, tree):
@@ -389,14 +453,15 @@ class NombankTreePointer(NombankPointer):
         Convert this pointer to a standard 'tree position' pointer,
         given that it points to the given tree.
         """
-        if tree is None: raise ValueError('Parse tree not avaialable')
+        if tree is None:
+            raise ValueError('Parse tree not avaialable')
         stack = [tree]
         treepos = []
 
         wordnum = 0
         while True:
-            #print treepos
-            #print stack[-1]
+            # print treepos
+            # print stack[-1]
             # tree node:
             if isinstance(stack[-1], Tree):
                 # Select the next child.
@@ -414,8 +479,7 @@ class NombankTreePointer(NombankPointer):
             # word node:
             else:
                 if wordnum == self.wordnum:
-                    return tuple(treepos[:len(treepos)-self.height-1])
+                    return tuple(treepos[: len(treepos) - self.height - 1])
                 else:
                     wordnum += 1
                     stack.pop()
-

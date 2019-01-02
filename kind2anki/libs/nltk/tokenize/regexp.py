@@ -1,6 +1,6 @@
 # Natural Language Toolkit: Tokenizers
 #
-# Copyright (C) 2001-2016 NLTK Project
+# Copyright (C) 2001-2019 NLTK Project
 # Author: Edward Loper <edloper@gmail.com>
 #         Steven Bird <stevenbird1@gmail.com>
 #         Trevor Cohn <tacohn@csse.unimelb.edu.au>
@@ -73,6 +73,7 @@ from nltk.tokenize.api import TokenizerI
 from nltk.tokenize.util import regexp_span_tokenize
 from nltk.compat import python_2_unicode_compatible
 
+
 @python_2_unicode_compatible
 class RegexpTokenizer(TokenizerI):
     """
@@ -100,8 +101,14 @@ class RegexpTokenizer(TokenizerI):
         used: `re.UNICODE | re.MULTILINE | re.DOTALL`.
 
     """
-    def __init__(self, pattern, gaps=False, discard_empty=True,
-                 flags=re.UNICODE | re.MULTILINE | re.DOTALL):
+
+    def __init__(
+        self,
+        pattern,
+        gaps=False,
+        discard_empty=True,
+        flags=re.UNICODE | re.MULTILINE | re.DOTALL,
+    ):
         # If they gave us a regexp object, extract the pattern.
         pattern = getattr(pattern, 'pattern', pattern)
 
@@ -110,11 +117,11 @@ class RegexpTokenizer(TokenizerI):
         self._discard_empty = discard_empty
         self._flags = flags
         self._regexp = None
-        
+
     def _check_regexp(self):
         if self._regexp is None:
             self._regexp = re.compile(self._pattern, self._flags)
-        
+
     def tokenize(self, text):
         self._check_regexp()
         # If our regexp matches gaps, use re.split:
@@ -140,9 +147,14 @@ class RegexpTokenizer(TokenizerI):
                 yield m.span()
 
     def __repr__(self):
-        return ('%s(pattern=%r, gaps=%r, discard_empty=%r, flags=%r)' %
-                (self.__class__.__name__, self._pattern, self._gaps,
-                 self._discard_empty, self._flags))
+        return '%s(pattern=%r, gaps=%r, discard_empty=%r, flags=%r)' % (
+            self.__class__.__name__,
+            self._pattern,
+            self._gaps,
+            self._discard_empty,
+            self._flags,
+        )
+
 
 class WhitespaceTokenizer(RegexpTokenizer):
     r"""
@@ -159,14 +171,17 @@ class WhitespaceTokenizer(RegexpTokenizer):
     def __init__(self):
         RegexpTokenizer.__init__(self, r'\s+', gaps=True)
 
+
 class BlanklineTokenizer(RegexpTokenizer):
     """
     Tokenize a string, treating any sequence of blank lines as a delimiter.
     Blank lines are defined as lines containing no characters, except for
     space or tab characters.
     """
+
     def __init__(self):
         RegexpTokenizer.__init__(self, r'\s*\n\s*\n\s*', gaps=True)
+
 
 class WordPunctTokenizer(RegexpTokenizer):
     """
@@ -179,15 +194,23 @@ class WordPunctTokenizer(RegexpTokenizer):
         ['Good', 'muffins', 'cost', '$', '3', '.', '88', 'in', 'New', 'York',
         '.', 'Please', 'buy', 'me', 'two', 'of', 'them', '.', 'Thanks', '.']
     """
+
     def __init__(self):
         RegexpTokenizer.__init__(self, r'\w+|[^\w\s]+')
 
+
 ######################################################################
-#{ Tokenization Functions
+# { Tokenization Functions
 ######################################################################
 
-def regexp_tokenize(text, pattern, gaps=False, discard_empty=True,
-                    flags=re.UNICODE | re.MULTILINE | re.DOTALL):
+
+def regexp_tokenize(
+    text,
+    pattern,
+    gaps=False,
+    discard_empty=True,
+    flags=re.UNICODE | re.MULTILINE | re.DOTALL,
+):
     """
     Return a tokenized copy of *text*.  See :class:`.RegexpTokenizer`
     for descriptions of the arguments.
@@ -195,8 +218,6 @@ def regexp_tokenize(text, pattern, gaps=False, discard_empty=True,
     tokenizer = RegexpTokenizer(pattern, gaps, discard_empty, flags)
     return tokenizer.tokenize(text)
 
+
 blankline_tokenize = BlanklineTokenizer().tokenize
 wordpunct_tokenize = WordPunctTokenizer().tokenize
-
-
-

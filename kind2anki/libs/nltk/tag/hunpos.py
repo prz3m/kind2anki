@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 # Natural Language Toolkit: Interface to the HunPos POS-tagger
 #
-# Copyright (C) 2001-2016 NLTK Project
+# Copyright (C) 2001-2019 NLTK Project
 # Author: Peter Ljunglöf <peter.ljunglof@heatherleaf.se>
 #         Dávid Márk Nemeskey <nemeskeyd@gmail.com> (modifications)
 #         Attila Zséder <zseder@gmail.com> (modifications)
@@ -15,14 +15,16 @@ A module for interfacing with the HunPos open-source POS-tagger.
 import os
 from subprocess import Popen, PIPE
 
+from six import text_type
+
 from nltk.internals import find_binary, find_file
 from nltk.tag.api import TaggerI
-from nltk import compat
 
 _hunpos_url = 'http://code.google.com/p/hunpos/'
 
 _hunpos_charset = 'ISO-8859-1'
 """The default encoding used by hunpos: ISO-8859-1."""
+
 
 class HunposTagger(TaggerI):
     """
@@ -50,8 +52,9 @@ class HunposTagger(TaggerI):
         [('What', 'WP'), ('is', 'VBZ'), ('the', 'DT'), ('airspeed', 'NN'), ('of', 'IN'), ('an', 'DT'), ('unladen', 'NN'), ('swallow', 'VB'), ('?', '.')]
     """
 
-    def __init__(self, path_to_model, path_to_bin=None,
-                 encoding=_hunpos_charset, verbose=False):
+    def __init__(
+        self, path_to_model, path_to_bin=None, encoding=_hunpos_charset, verbose=False
+    ):
         """
         Starts the hunpos-tag executable and establishes a connection with it.
 
@@ -66,23 +69,37 @@ class HunposTagger(TaggerI):
             The caller must ensure that tokens are encoded in the right charset.
         """
         self._closed = True
-        hunpos_paths = ['.', '/usr/bin', '/usr/local/bin', '/opt/local/bin',
-                        '/Applications/bin', '~/bin', '~/Applications/bin']
+        hunpos_paths = [
+            '.',
+            '/usr/bin',
+            '/usr/local/bin',
+            '/opt/local/bin',
+            '/Applications/bin',
+            '~/bin',
+            '~/Applications/bin',
+        ]
         hunpos_paths = list(map(os.path.expanduser, hunpos_paths))
 
         self._hunpos_bin = find_binary(
-            'hunpos-tag', path_to_bin,
+            'hunpos-tag',
+            path_to_bin,
             env_vars=('HUNPOS_TAGGER',),
             searchpath=hunpos_paths,
             url=_hunpos_url,
-            verbose=verbose
+            verbose=verbose,
         )
 
         self._hunpos_model = find_file(
-            path_to_model, env_vars=('HUNPOS_TAGGER',), verbose=verbose)
+            path_to_model, env_vars=('HUNPOS_TAGGER',), verbose=verbose
+        )
         self._encoding = encoding
-        self._hunpos = Popen([self._hunpos_bin, self._hunpos_model],
-                             shell=False, stdin=PIPE, stdout=PIPE, stderr=PIPE)
+        self._hunpos = Popen(
+            [self._hunpos_bin, self._hunpos_model],
+            shell=False,
+            stdin=PIPE,
+            stdout=PIPE,
+            stderr=PIPE,
+        )
         self._closed = False
 
     def __del__(self):
@@ -96,6 +113,7 @@ class HunposTagger(TaggerI):
 
     def __enter__(self):
         return self
+
     def __exit__(self, exc_type, exc_value, traceback):
         self.close()
 
@@ -105,7 +123,7 @@ class HunposTagger(TaggerI):
         """
         for token in tokens:
             assert "\n" not in token, "Tokens should not contain newlines"
-            if isinstance(token, compat.text_type):
+            if isinstance(token, text_type):
                 token = token.encode(self._encoding)
             self._hunpos.stdin.write(token + b"\n")
         # We write a final empty line to tell hunpos that the sentence is finished:
@@ -115,18 +133,19 @@ class HunposTagger(TaggerI):
         tagged_tokens = []
         for token in tokens:
             tagged = self._hunpos.stdout.readline().strip().split(b"\t")
-            tag = (tagged[1] if len(tagged) > 1 else None)
+            tag = tagged[1] if len(tagged) > 1 else None
             tagged_tokens.append((token, tag))
         # We have to read (and dismiss) the final empty line:
         self._hunpos.stdout.readline()
 
         return tagged_tokens
 
+
 # skip doctests if Hunpos tagger is not installed
 def setup_module(module):
     from nose import SkipTest
+
     try:
         HunposTagger('en_wsj.model')
     except LookupError:
         raise SkipTest("HunposTagger is not available")
-

@@ -1,6 +1,6 @@
 # Natural Language Toolkit: Tokenizer Interface
 #
-# Copyright (C) 2001-2016 NLTK Project
+# Copyright (C) 2001-2019 NLTK Project
 # Author: Edward Loper <edloper@gmail.com>
 #         Steven Bird <stevenbird1@gmail.com>
 # URL: <http://nltk.org/>
@@ -11,10 +11,11 @@ Tokenizer Interface
 """
 
 from abc import ABCMeta, abstractmethod
-from nltk.six import add_metaclass
+from six import add_metaclass
 
 from nltk.internals import overridden
 from nltk.tokenize.util import string_span_tokenize
+
 
 @add_metaclass(ABCMeta)
 class TokenizerI(object):
@@ -22,6 +23,7 @@ class TokenizerI(object):
     A processing interface for tokenizing a string.
     Subclasses must define ``tokenize()`` or ``tokenize_sents()`` (or both).
     """
+
     @abstractmethod
     def tokenize(self, s):
         """
@@ -74,5 +76,3 @@ class StringTokenizer(TokenizerI):
     def span_tokenize(self, s):
         for span in string_span_tokenize(s, self._string):
             yield span
-
-

@@ -1,6 +1,6 @@
 # Natural Language Toolkit: Chunk parsing API
 #
-# Copyright (C) 2001-2016 NLTK Project
+# Copyright (C) 2001-2019 NLTK Project
 # Author: Edward Loper <edloper@gmail.com>
 # URL: <http://nltk.org/>
 # For license information, see LICENSE.TXT
@@ -9,6 +9,7 @@
 Named entity chunker
 """
 from __future__ import print_function
+from __future__ import unicode_literals
 
 import os, re, pickle
 from xml.etree import ElementTree as ET
@@ -27,25 +28,28 @@ from nltk.data import find
 from nltk.chunk.api import ChunkParserI
 from nltk.chunk.util import ChunkScore
 
+
 class NEChunkParserTagger(ClassifierBasedTagger):
     """
     The IOB tagger used by the chunk parser.
     """
+
     def __init__(self, train):
         ClassifierBasedTagger.__init__(
-            self, train=train,
-            classifier_builder=self._classifier_builder)
+            self, train=train, classifier_builder=self._classifier_builder
+        )
 
     def _classifier_builder(self, train):
-        return MaxentClassifier.train(train, algorithm='megam',
-                                           gaussian_prior_sigma=1,
-                                           trace=2)
+        return MaxentClassifier.train(
+            train, algorithm='megam', gaussian_prior_sigma=1, trace=2
+        )
 
     def _english_wordlist(self):
         try:
             wl = self._en_wordlist
         except AttributeError:
             from nltk.corpus import words
+
             self._en_wordlist = set(words.words('en-basic'))
             wl = self._en_wordlist
         return wl
@@ -58,33 +62,33 @@ class NEChunkParserTagger(ClassifierBasedTagger):
             prevpos = prevprevpos = None
             prevshape = prevtag = prevprevtag = None
         elif index == 1:
-            prevword = tokens[index-1][0].lower()
+            prevword = tokens[index - 1][0].lower()
             prevprevword = None
-            prevpos = simplify_pos(tokens[index-1][1])
+            prevpos = simplify_pos(tokens[index - 1][1])
             prevprevpos = None
-            prevtag = history[index-1][0]
+            prevtag = history[index - 1][0]
             prevshape = prevprevtag = None
         else:
-            prevword = tokens[index-1][0].lower()
-            prevprevword = tokens[index-2][0].lower()
-            prevpos = simplify_pos(tokens[index-1][1])
-            prevprevpos = simplify_pos(tokens[index-2][1])
-            prevtag = history[index-1]
-            prevprevtag = history[index-2]
+            prevword = tokens[index - 1][0].lower()
+            prevprevword = tokens[index - 2][0].lower()
+            prevpos = simplify_pos(tokens[index - 1][1])
+            prevprevpos = simplify_pos(tokens[index - 2][1])
+            prevtag = history[index - 1]
+            prevprevtag = history[index - 2]
             prevshape = shape(prevword)
-        if index == len(tokens)-1:
+        if index == len(tokens) - 1:
             nextword = nextnextword = None
             nextpos = nextnextpos = None
-        elif index == len(tokens)-2:
-            nextword = tokens[index+1][0].lower()
-            nextpos = tokens[index+1][1].lower()
+        elif index == len(tokens) - 2:
+            nextword = tokens[index + 1][0].lower()
+            nextpos = tokens[index + 1][1].lower()
             nextnextword = None
             nextnextpos = None
         else:
-            nextword = tokens[index+1][0].lower()
-            nextpos = tokens[index+1][1].lower()
-            nextnextword = tokens[index+2][0].lower()
-            nextnextpos = tokens[index+2][1].lower()
+            nextword = tokens[index + 1][0].lower()
+            nextpos = tokens[index + 1][1].lower()
+            nextnextword = tokens[index + 2][0].lower()
+            nextnextpos = tokens[index + 2][1].lower()
 
         # 89.6
         features = {
@@ -101,17 +105,19 @@ class NEChunkParserTagger(ClassifierBasedTagger):
             'nextpos': nextpos,
             'prevword': prevword,
             'nextword': nextword,
-            'word+nextpos': '%s+%s' % (word.lower(), nextpos),
-            'pos+prevtag': '%s+%s' % (pos, prevtag),
-            'shape+prevtag': '%s+%s' % (prevshape, prevtag),
-            }
+            'word+nextpos': '{0}+{1}'.format(word.lower(), nextpos),
+            'pos+prevtag': '{0}+{1}'.format(pos, prevtag),
+            'shape+prevtag': '{0}+{1}'.format(prevshape, prevtag),
+        }
 
         return features
+
 
 class NEChunkParser(ChunkParserI):
     """
     Expected input: list of pos-tagged words
     """
+
     def __init__(self, train):
         self._train(train)
 
@@ -135,14 +141,13 @@ class NEChunkParser(ChunkParserI):
         """
         sent = Tree('S', [])
 
-        for (tok,tag) in tagged_tokens:
+        for (tok, tag) in tagged_tokens:
             if tag == 'O':
                 sent.append(tok)
             elif tag.startswith('B-'):
                 sent.append(Tree(tag[2:], [tok]))
             elif tag.startswith('I-'):
-                if (sent and isinstance(sent[-1], Tree) and
-                    sent[-1].label() == tag[2:]):
+                if sent and isinstance(sent[-1], Tree) and sent[-1].label() == tag[2:]:
                     sent[-1].append(tok)
                 else:
                     sent.append(Tree(tag[2:], [tok]))
@@ -159,12 +164,13 @@ class NEChunkParser(ChunkParserI):
                 if len(child) == 0:
                     print("Warning -- empty chunk in sentence")
                     continue
-                toks.append((child[0], 'B-%s' % child.label()))
+                toks.append((child[0], 'B-{0}'.format(child.label())))
                 for tok in child[1:]:
-                    toks.append((tok, 'I-%s' % child.label()))
+                    toks.append((tok, 'I-{0}'.format(child.label())))
             else:
                 toks.append((child, 'O'))
         return toks
+
 
 def shape(word):
     if re.match('[0-9]+(\.[0-9]*)?|[0-9]*\.[0-9]+$', word, re.UNICODE):
@@ -181,9 +187,13 @@ def shape(word):
     else:
         return 'other'
 
+
 def simplify_pos(s):
-    if s.startswith('V'): return "V"
-    else: return s.split('-')[0]
+    if s.startswith('V'):
+        return "V"
+    else:
+        return s.split('-')[0]
+
 
 def postag_tree(tree):
     # Part-of-speech tagging.
@@ -194,10 +204,11 @@ def postag_tree(tree):
         if isinstance(child, Tree):
             newtree.append(Tree(child.label(), []))
             for subchild in child:
-                newtree[-1].append( (subchild, next(tag_iter)) )
+                newtree[-1].append((subchild, next(tag_iter)))
         else:
-            newtree.append( (child, next(tag_iter)) )
+            newtree.append((child, next(tag_iter)))
     return newtree
+
 
 def load_ace_data(roots, fmt='binary', skip_bnews=True):
     for root in roots:
@@ -209,9 +220,10 @@ def load_ace_data(roots, fmt='binary', skip_bnews=True):
                     for sent in load_ace_file(os.path.join(root, f), fmt):
                         yield sent
 
+
 def load_ace_file(textfile, fmt):
-    print('  - %s' % os.path.split(textfile)[1])
-    annfile = textfile+'.tmx.rdc.xml'
+    print('  - {0}'.format(os.path.split(textfile)[1]))
+    annfile = textfile + '.tmx.rdc.xml'
 
     # Read the xml file, and get a list of entities
     entities = []
@@ -220,10 +232,11 @@ def load_ace_file(textfile, fmt):
     for entity in xml.findall('document/entity'):
         typ = entity.find('entity_type').text
         for mention in entity.findall('entity_mention'):
-            if mention.get('TYPE') != 'NAME': continue # only NEs
+            if mention.get('TYPE') != 'NAME':
+                continue  # only NEs
             s = int(mention.find('head/charseq/start').text)
-            e = int(mention.find('head/charseq/end').text)+1
-            entities.append( (s, e, typ) )
+            e = int(mention.find('head/charseq/end').text) + 1
+            entities.append((s, e, typ))
 
     # Read the text file, and mark the entities.
     with open(textfile, 'r') as infile:
@@ -233,7 +246,9 @@ def load_ace_file(textfile, fmt):
     text = re.sub('<(?!/?TEXT)[^>]+>', '', text)
 
     # Blank out anything before/after <TEXT>
-    def subfunc(m): return ' '*(m.end()-m.start()-6)
+    def subfunc(m):
+        return ' ' * (m.end() - m.start() - 6)
+
     text = re.sub('[\s\S]*<TEXT>', subfunc, text)
     text = re.sub('</TEXT>[\s\S]*', '', text)
 
@@ -241,15 +256,17 @@ def load_ace_file(textfile, fmt):
     text = re.sub("``", ' "', text)
     text = re.sub("''", '" ', text)
 
-    entity_types = set(typ for (s,e,typ) in entities)
+    entity_types = set(typ for (s, e, typ) in entities)
 
     # Binary distinction (NE or not NE)
     if fmt == 'binary':
         i = 0
         toks = Tree('S', [])
-        for (s,e,typ) in sorted(entities):
-            if s < i: s = i # Overlapping!  Deal with this better?
-            if e <= s: continue
+        for (s, e, typ) in sorted(entities):
+            if s < i:
+                s = i  # Overlapping!  Deal with this better?
+            if e <= s:
+                continue
             toks.extend(word_tokenize(text[i:s]))
             toks.append(Tree('NE', text[s:e].split()))
             i = e
@@ -260,9 +277,11 @@ def load_ace_file(textfile, fmt):
     elif fmt == 'multiclass':
         i = 0
         toks = Tree('S', [])
-        for (s,e,typ) in sorted(entities):
-            if s < i: s = i # Overlapping!  Deal with this better?
-            if e <= s: continue
+        for (s, e, typ) in sorted(entities):
+            if s < i:
+                s = i  # Overlapping!  Deal with this better?
+            if e <= s:
+                continue
             toks.extend(word_tokenize(text[i:s]))
             toks.append(Tree(typ, text[s:e].split()))
             i = e
@@ -271,6 +290,7 @@ def load_ace_file(textfile, fmt):
 
     else:
         raise ValueError('bad fmt value')
+
 
 # This probably belongs in a more general-purpose location (as does
 # the parse_to_tagged function).
@@ -281,19 +301,22 @@ def cmp_chunks(correct, guessed):
     for (w, ct), (w, gt) in zip(correct, guessed):
         if ct == gt == 'O':
             if not ellipsis:
-                print("  %-15s %-15s %s" % (ct, gt, w))
-                print('  %-15s %-15s %s' % ('...', '...', '...'))
+                print("  {:15} {:15} {2}".format(ct, gt, w))
+                print('  {:15} {:15} {2}'.format('...', '...', '...'))
                 ellipsis = True
         else:
             ellipsis = False
-            print("  %-15s %-15s %s" % (ct, gt, w))
+            print("  {:15} {:15} {2}".format(ct, gt, w))
+
 
 def build_model(fmt='binary'):
     print('Loading training data...')
-    train_paths = [find('corpora/ace_data/ace.dev'),
-                   find('corpora/ace_data/ace.heldout'),
-                   find('corpora/ace_data/bbn.dev'),
-                   find('corpora/ace_data/muc.dev')]
+    train_paths = [
+        find('corpora/ace_data/ace.dev'),
+        find('corpora/ace_data/ace.heldout'),
+        find('corpora/ace_data/bbn.dev'),
+        find('corpora/ace_data/muc.dev'),
+    ]
     train_trees = load_ace_data(train_paths, fmt)
     train_data = [postag_tree(t) for t in train_trees]
     print('Training...')
@@ -310,11 +333,12 @@ def build_model(fmt='binary'):
     for i, correct in enumerate(eval_data):
         guess = cp.parse(correct.leaves())
         chunkscore.score(correct, guess)
-        if i < 3: cmp_chunks(correct, guess)
+        if i < 3:
+            cmp_chunks(correct, guess)
     print(chunkscore)
 
-    outfilename = '/tmp/ne_chunker_%s.pickle' % fmt
-    print('Saving chunker to %s...' % outfilename)
+    outfilename = '/tmp/ne_chunker_{0}.pickle'.format(fmt)
+    print('Saving chunker to {0}...'.format(outfilename))
 
     with open(outfilename, 'wb') as outfile:
         pickle.dump(cp, outfile, -1)
@@ -328,4 +352,3 @@ if __name__ == '__main__':
 
     build_model('binary')
     build_model('multiclass')
-

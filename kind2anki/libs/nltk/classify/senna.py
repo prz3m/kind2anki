@@ -1,7 +1,7 @@
 # encoding: utf-8
 # Natural Language Toolkit: Senna Interface
 #
-# Copyright (C) 2001-2016 NLTK Project
+# Copyright (C) 2001-2019 NLTK Project
 # Author: Rami Al-Rfou' <ralrfou@cs.stonybrook.edu>
 # URL: <http://nltk.org/>
 # For license information, see LICENSE.TXT
@@ -22,17 +22,19 @@ system specific binary should be rebuilt. Otherwise this could introduce
 misalignment errors.
 
 The input is:
-- path to the directory that contains SENNA executables. If the path is incorrect, 
+- path to the directory that contains SENNA executables. If the path is incorrect,
    Senna will automatically search for executable file specified in SENNA environment variable
 - List of the operations needed to be performed.
 - (optionally) the encoding of the input data (default:utf-8)
 
+Note: Unit tests for this module can be found in test/unit/test_senna.py
+
     >>> from __future__ import unicode_literals
     >>> from nltk.classify import Senna
-    >>> pipeline = Senna('/usr/share/senna-v2.0', ['pos', 'chk', 'ner'])
+    >>> pipeline = Senna('/usr/share/senna-v3.0', ['pos', 'chk', 'ner'])
     >>> sent = 'Dusseldorf is an international business center'.split()
-    >>> [(token['word'], token['chk'], token['ner'], token['pos']) for token in pipeline.tag(sent)]
-    [('Dusseldorf', 'B-NP', 'B-LOC', 'NNP'), ('is', 'B-VP', 'O', 'VBZ'), ('an', 'B-NP', 'O', 'DT'), 
+    >>> [(token['word'], token['chk'], token['ner'], token['pos']) for token in pipeline.tag(sent)] # doctest: +SKIP
+    [('Dusseldorf', 'B-NP', 'B-LOC', 'NNP'), ('is', 'B-VP', 'O', 'VBZ'), ('an', 'B-NP', 'O', 'DT'),
     ('international', 'I-NP', 'O', 'JJ'), ('business', 'I-NP', 'O', 'NN'), ('center', 'I-NP', 'O', 'NN')]
 """
 
@@ -42,8 +44,10 @@ from os import path, sep, environ
 from subprocess import Popen, PIPE
 from platform import architecture, system
 
+from six import text_type
+
 from nltk.tag.api import TaggerI
-from nltk.compat import text_type, python_2_unicode_compatible
+from nltk.compat import python_2_unicode_compatible
 
 _senna_url = 'http://ml.nec-labs.com/senna/'
 
@@ -55,29 +59,31 @@ class Senna(TaggerI):
 
     def __init__(self, senna_path, operations, encoding='utf-8'):
         self._encoding = encoding
-        self._path = path.normpath(senna_path) + sep 
-        
-        # Verifies the existence of the executable on the self._path first    
-        #senna_binary_file_1 = self.executable(self._path)
+        self._path = path.normpath(senna_path) + sep
+
+        # Verifies the existence of the executable on the self._path first
+        # senna_binary_file_1 = self.executable(self._path)
         exe_file_1 = self.executable(self._path)
         if not path.isfile(exe_file_1):
-            # Check for the system environment 
+            # Check for the system environment
             if 'SENNA' in environ:
-                #self._path = path.join(environ['SENNA'],'')  
-                self._path = path.normpath(environ['SENNA']) + sep 
+                # self._path = path.join(environ['SENNA'],'')
+                self._path = path.normpath(environ['SENNA']) + sep
                 exe_file_2 = self.executable(self._path)
                 if not path.isfile(exe_file_2):
-                    raise OSError("Senna executable expected at %s or %s but not found" % (exe_file_1,exe_file_2))
-        
+                    raise OSError(
+                        "Senna executable expected at %s or %s but not found"
+                        % (exe_file_1, exe_file_2)
+                    )
+
         self.operations = operations
 
-    
     def executable(self, base_path):
         """
         The function that determines the system specific binary that should be
         used in the pipeline. In case, the system is not known the default senna binary will
         be used.
-        """ 
+        """
         os_name = system()
         if os_name == 'Linux':
             bits = architecture()[0]
@@ -89,7 +95,7 @@ class Senna(TaggerI):
         if os_name == 'Darwin':
             return path.join(base_path, 'senna-osx')
         return path.join(base_path, 'senna')
-        
+
     def _map(self):
         """
         A method that calculates the order of the columns that SENNA pipeline
@@ -100,7 +106,7 @@ class Senna(TaggerI):
         for operation in Senna.SUPPORTED_OPERATIONS:
             if operation in self.operations:
                 _map[operation] = i
-                i+= 1
+                i += 1
         return _map
 
     def tag(self, tokens):
@@ -116,17 +122,25 @@ class Senna(TaggerI):
         calculated annotations/tags.
         """
         encoding = self._encoding
-        
+
         if not path.isfile(self.executable(self._path)):
-            raise OSError("Senna executable expected at %s but not found" % self.executable(self._path))
-        
-         
+            raise OSError(
+                "Senna executable expected at %s but not found"
+                % self.executable(self._path)
+            )
+
         # Build the senna command to run the tagger
-        _senna_cmd = [self.executable(self._path), '-path', self._path, '-usrtokens', '-iobtags']
-        _senna_cmd.extend(['-'+op for op in self.operations])
+        _senna_cmd = [
+            self.executable(self._path),
+            '-path',
+            self._path,
+            '-usrtokens',
+            '-iobtags',
+        ]
+        _senna_cmd.extend(['-' + op for op in self.operations])
 
         # Serialize the actual sentences to a temporary string
-        _input = '\n'.join((' '.join(x) for x in sentences))+'\n'
+        _input = '\n'.join((' '.join(x) for x in sentences)) + '\n'
         if isinstance(_input, text_type) and encoding:
             _input = _input.encode(encoding)
 
@@ -156,15 +170,16 @@ class Senna(TaggerI):
             tags = tagged_word.split('\t')
             result = {}
             for tag in map_:
-              result[tag] = tags[map_[tag]].strip()
+                result[tag] = tags[map_[tag]].strip()
             try:
-              result['word'] = sentences[sentence_index][token_index]
+                result['word'] = sentences[sentence_index][token_index]
             except IndexError:
-              raise IndexError(
-                "Misalignment error occurred at sentence number %d. Possible reason"
-                " is that the sentence size exceeded the maximum size. Check the "
-                "documentation of Senna class for more information."
-                % sentence_index)
+                raise IndexError(
+                    "Misalignment error occurred at sentence number %d. Possible reason"
+                    " is that the sentence size exceeded the maximum size. Check the "
+                    "documentation of Senna class for more information."
+                    % sentence_index
+                )
             tagged_sentences[-1].append(result)
             token_index += 1
         return tagged_sentences
@@ -173,9 +188,8 @@ class Senna(TaggerI):
 # skip doctests if Senna is not installed
 def setup_module(module):
     from nose import SkipTest
+
     try:
-        tagger = Senna('/usr/share/senna-v2.0', ['pos', 'chk', 'ner'])
+        tagger = Senna('/usr/share/senna-v3.0', ['pos', 'chk', 'ner'])
     except OSError:
         raise SkipTest("Senna executable not found")
-
-

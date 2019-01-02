@@ -5,25 +5,27 @@ from aqt import mw
 from aqt.utils import showInfo, getFile, showText
 from aqt.qt import *
 from anki.importing import TextImporter
-from PyQt4.QtCore import QThread, pyqtSignal
+from PyQt5.QtCore import QThread, pyqtSignal
 
 # some python libs
 import os
 import sys
 import sqlite3
-import urllib2
+import urllib
 import datetime
 import time
 import string
 from sys import platform
 import getpass
 
+sys.path.insert(0, os.path.join(mw.pm.addonFolder(), "kind2anki"))
+sys.path.insert(0, os.path.join(mw.pm.addonFolder(), "kind2anki", "kind2anki"))
+sys.path.insert(0, os.path.join(mw.pm.addonFolder(), "kind2anki", "kind2anki", "libs"))
+
 # addon's ui
 import kind2anki_ui
 
 from kindleimporter import KindleImporter
-
-sys.path.insert(0, os.path.join(mw.pm.addonFolder(), "kind2anki", "libs"))
 
 
 class ThreadTranslate(QThread):
@@ -105,10 +107,10 @@ class Kind2AnkiDialog(QDialog):
             doTranslate = self.frm.doTranslate.isChecked()
             importDays = self.frm.importDays.value()
 
-            # if doTranslate:
-            #     showInfo("Translating words from database, it can take a while...")
-            # else:
-            #     showInfo("Fetching words from database, it can take a while...")
+            #if doTranslate:
+            #    showInfo("Translating words from database, it can take a while...")
+            #else:
+            #    showInfo("Fetching words from database, it can take a while...")
 
             self.t.dialog = self
             self.t.args = (
@@ -117,7 +119,7 @@ class Kind2AnkiDialog(QDialog):
 
             self.t.start()
 
-        except urllib2.URLError:
+        except urllib.error.URLError:
             showInfo("Cannot connect")
         except IOError:
             showInfo("DB file not selected, exiting")
@@ -128,7 +130,7 @@ class Kind2AnkiDialog(QDialog):
             self.mw.reset()
 
     def setupImporter(self, temp_file_path):
-        self.importer = TextImporter(self.mw.col, unicode(temp_file_path))
+        self.importer = TextImporter(self.mw.col, str(temp_file_path))
         self.importer.initMapping()
         self.importer.allowHTML = True
         self.importer.importMode = self.frm.importMode.currentIndex()
@@ -183,17 +185,21 @@ def getDBPath():
     )
     if not db_path:
         raise IOError
-    db_path = unicode(db_path)
+    db_path = str(db_path)
     return db_path
 
 
 def getKindleVocabPath():
     try:
-        if platform == "win32":
+        if platform.system == "Windows":
             for l in string.ascii_uppercase:
                 path = r"{}:\\system\vocabulary\vocab.db".format(l)
                 if os.path.exists(path):
                     return r"{}:\\system\vocabulary".format(l)
+        elif platform.system == "Darwin":
+            path = "/Volumes/Kindle/system/vocabulary/vocab.db"
+            if os.path.exists(path):
+                return path
         else:
             user = getpass.getuser()
             path = r"/media/{}/Kindle/system/vocabulary/vocab.db".format(user)
@@ -206,5 +212,5 @@ def getKindleVocabPath():
 
 
 action = QAction("kind2anki", mw)
-mw.connect(action, SIGNAL("triggered()"), Kind2AnkiDialog)
+action.triggered.connect(Kind2AnkiDialog)
 mw.form.menuTools.addAction(action)

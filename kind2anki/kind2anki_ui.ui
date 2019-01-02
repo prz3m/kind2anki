@@ -1,4 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
+<!-- generate the UI like so after installing pyqt5 - `pyuic5 \-\-import-from=widgets -x kind2anki_ui.ui > kind2anki_ui.py` -->
 <ui version="4.0">
  <class>kind2ankiDialog</class>
  <widget class="QDialog" name="kind2ankiDialog">
@@ -149,6 +150,16 @@
           <item>
            <property name="text">
             <string>pt</string>
+           </property>
+          </item>
+          <item>
+           <property name="text">
+            <string>en</string>
+           </property>
+          </item>
+          <item>
+           <property name="text">
+            <string>es</string>
            </property>
           </item>
          </widget>

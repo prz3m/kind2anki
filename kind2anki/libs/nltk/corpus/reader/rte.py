@@ -1,6 +1,6 @@
 # Natural Language Toolkit: RTE Corpus Reader
 #
-# Copyright (C) 2001-2016 NLTK Project
+# Copyright (C) 2001-2019 NLTK Project
 # Author:  Ewan Klein <ewan@inf.ed.ac.uk>
 # URL: <http://nltk.org/>
 # For license information, see LICENSE.TXT
@@ -33,6 +33,9 @@ file, taking values 1, 2 or 3. The GID is formatted 'm-n', where 'm' is the
 challenge number and 'n' is the pair ID.
 """
 from __future__ import unicode_literals
+
+from six import string_types
+
 from nltk import compat
 from nltk.corpus.reader.util import *
 from nltk.corpus.reader.api import *
@@ -49,11 +52,9 @@ def norm(value_string):
     :rtype: int
     """
 
-    valdict = {"TRUE": 1,
-                     "FALSE": 0,
-                     "YES": 1,
-                     "NO": 0}
+    valdict = {"TRUE": 1, "FALSE": 0, "YES": 1, "NO": 0}
     return valdict[value_string.upper()]
+
 
 @compat.python_2_unicode_compatible
 class RTEPair(object):
@@ -64,8 +65,18 @@ class RTEPair(object):
     ``entailment`` in RTE2 and RTE3. These both get mapped on to the ``entailment``
     attribute of this class.
     """
-    def __init__(self, pair, challenge=None, id=None, text=None, hyp=None,
-             value=None, task=None, length=None):
+
+    def __init__(
+        self,
+        pair,
+        challenge=None,
+        id=None,
+        text=None,
+        hyp=None,
+        value=None,
+        task=None,
+        length=None,
+    ):
         """
         :param challenge: version of the RTE challenge (i.e., RTE1, RTE2 or RTE3)
         :param id: identifier for the pair
@@ -75,7 +86,7 @@ class RTEPair(object):
         :param task: attribute for the particular NLP task that the data was drawn from
         :param length: attribute for the length of the text of the pair
         """
-        self.challenge =  challenge
+        self.challenge = challenge
         self.id = pair.attrib["id"]
         self.gid = "%s-%s" % (self.challenge, self.id)
         self.text = pair[0].text
@@ -125,9 +136,7 @@ class RTECorpusReader(XMLCorpusReader):
             challenge = doc.attrib['challenge']
         except KeyError:
             challenge = None
-        return [RTEPair(pair, challenge=challenge)
-                for pair in doc.getiterator("pair")]
-
+        return [RTEPair(pair, challenge=challenge) for pair in doc.getiterator("pair")]
 
     def pairs(self, fileids):
         """
@@ -137,10 +146,6 @@ class RTECorpusReader(XMLCorpusReader):
         :type: list
         :rtype: list(RTEPair)
         """
-        if isinstance(fileids, compat.string_types): fileids = [fileids]
+        if isinstance(fileids, string_types):
+            fileids = [fileids]
         return concat([self._read_etree(self.xml(fileid)) for fileid in fileids])
-
-
-
-
-

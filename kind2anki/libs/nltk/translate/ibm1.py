@@ -15,16 +15,25 @@
 """
 Lexical translation model that ignores word order.
 
-In IBM Model 1, word order is ignored for simplicity. Thus, the
-following two alignments are equally likely.
+In IBM Model 1, word order is ignored for simplicity. As long as the
+word alignments are equivalent, it doesn't matter where the word occurs
+in the source or target sentence. Thus, the following three alignments
+are equally likely.
 
 Source: je mange du jambon
 Target: i eat some ham
-Alignment: (1,1) (2,2) (3,3) (4,4)
+Alignment: (0,0) (1,1) (2,2) (3,3)
 
 Source: je mange du jambon
 Target: some ham eat i
-Alignment: (1,4) (2,3) (3,2) (4,1)
+Alignment: (0,2) (1,3) (2,1) (3,1)
+
+Source: du jambon je mange
+Target: eat i some ham
+Alignment: (0,3) (1,2) (2,0) (3,1)
+
+Note that an alignment is represented here as
+(word_index_in_target, word_index_in_source).
 
 The EM algorithm used in Model 1 is:
 E step - In the training data, count how many times a source language
@@ -96,8 +105,7 @@ class IBMModel1(IBMModel):
 
     """
 
-    def __init__(self, sentence_aligned_corpus, iterations,
-                 probability_tables=None):
+    def __init__(self, sentence_aligned_corpus, iterations, probability_tables=None):
         """
         Train on ``sentence_aligned_corpus`` and create a lexical
         translation model.
@@ -130,14 +138,17 @@ class IBMModel1(IBMModel):
         for n in range(0, iterations):
             self.train(sentence_aligned_corpus)
 
-        self.__align_all(sentence_aligned_corpus)
+        self.align_all(sentence_aligned_corpus)
 
     def set_uniform_probabilities(self, sentence_aligned_corpus):
         initial_prob = 1 / len(self.trg_vocab)
         if initial_prob < IBMModel.MIN_PROB:
-            warnings.warn("Target language vocabulary is too large (" +
-                          str(len(self.trg_vocab)) + " words). "
-                          "Results may be less accurate.")
+            warnings.warn(
+                "Target language vocabulary is too large ("
+                + str(len(self.trg_vocab))
+                + " words). "
+                "Results may be less accurate."
+            )
 
         for t in self.trg_vocab:
             self.translation_table[t] = defaultdict(lambda: initial_prob)
@@ -205,11 +216,11 @@ class IBMModel1(IBMModel):
 
         return max(prob, IBMModel.MIN_PROB)
 
-    def __align_all(self, parallel_corpus):
+    def align_all(self, parallel_corpus):
         for sentence_pair in parallel_corpus:
-            self.__align(sentence_pair)
+            self.align(sentence_pair)
 
-    def __align(self, sentence_pair):
+    def align(self, sentence_pair):
         """
         Determines the best word alignment for one sentence pair from
         the corpus that the model was trained on.
@@ -227,8 +238,7 @@ class IBMModel1(IBMModel):
 
         for j, trg_word in enumerate(sentence_pair.words):
             # Initialize trg_word to align with the NULL token
-            best_prob = max(self.translation_table[trg_word][None],
-                            IBMModel.MIN_PROB)
+            best_prob = max(self.translation_table[trg_word][None], IBMModel.MIN_PROB)
             best_alignment_point = None
             for i, src_word in enumerate(sentence_pair.mots):
                 align_prob = self.translation_table[trg_word][src_word]

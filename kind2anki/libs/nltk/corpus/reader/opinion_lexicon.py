@@ -1,6 +1,6 @@
 # Natural Language Toolkit: Opinion Lexicon Corpus Reader
 #
-# Copyright (C) 2001-2016 NLTK Project
+# Copyright (C) 2001-2019 NLTK Project
 # Author: Pierpaolo Pantone <24alsecondo@gmail.com>
 # URL: <http://nltk.org/>
 # For license information, see LICENSE.TXT
@@ -27,15 +27,17 @@ Related papers:
     Comparing Opinions on the Web". Proceedings of the 14th International World
     Wide Web conference (WWW-2005), May 10-14, 2005, Chiba, Japan.
 """
+from six import string_types
 
-from nltk.compat import string_types
 from nltk.corpus.reader import WordListCorpusReader
 from nltk.corpus.reader.api import *
+
 
 class IgnoreReadmeCorpusView(StreamBackedCorpusView):
     """
     This CorpusView is used to skip the initial readme block of the corpus.
     """
+
     def __init__(self, *args, **kwargs):
         StreamBackedCorpusView.__init__(self, *args, **kwargs)
         # open self._stream
@@ -82,10 +84,16 @@ class OpinionLexiconCorpusReader(WordListCorpusReader):
         :return: the given file(s) as a list of words and punctuation symbols.
         :rtype: list(str)
         """
-        if fileids is None: fileids = self._fileids
-        elif isinstance(fileids, compat.string_types): fileids = [fileids]
-        return concat([self.CorpusView(path, self._read_word_block, encoding=enc)
-            for (path, enc, fileid) in self.abspaths(fileids, True, True)])
+        if fileids is None:
+            fileids = self._fileids
+        elif isinstance(fileids, string_types):
+            fileids = [fileids]
+        return concat(
+            [
+                self.CorpusView(path, self._read_word_block, encoding=enc)
+                for (path, enc, fileid) in self.abspaths(fileids, True, True)
+            ]
+        )
 
     def positive(self):
         """
@@ -107,7 +115,7 @@ class OpinionLexiconCorpusReader(WordListCorpusReader):
 
     def _read_word_block(self, stream):
         words = []
-        for i in range(20): # Read 20 lines at a time.
+        for i in range(20):  # Read 20 lines at a time.
             line = stream.readline()
             if not line:
                 continue

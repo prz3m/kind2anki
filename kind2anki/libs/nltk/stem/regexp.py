@@ -1,6 +1,6 @@
 # Natural Language Toolkit: Stemmers
 #
-# Copyright (C) 2001-2016 NLTK Project
+# Copyright (C) 2001-2019 NLTK Project
 # Author: Trevor Cohn <tacohn@cs.mu.oz.au>
 #         Edward Loper <edloper@gmail.com>
 #         Steven Bird <stevenbird1@gmail.com>
@@ -11,6 +11,7 @@ import re
 
 from nltk.stem.api import StemmerI
 from nltk.compat import python_2_unicode_compatible
+
 
 @python_2_unicode_compatible
 class RegexpStemmer(StemmerI):
@@ -40,6 +41,7 @@ class RegexpStemmer(StemmerI):
     :type min: int
     :param min: The minimum length of string to stem
     """
+
     def __init__(self, regexp, min=0):
 
         if not hasattr(regexp, 'pattern'):
@@ -54,8 +56,4 @@ class RegexpStemmer(StemmerI):
             return self._regexp.sub('', word)
 
     def __repr__(self):
-        return '<RegexpStemmer: %r>' % self._regexp.pattern
-
-
-
-
+        return '<RegexpStemmer: {!r}>'.format(self._regexp.pattern)

@@ -1,6 +1,6 @@
 # Natural Language Toolkit: Chatbot Utilities
 #
-# Copyright (C) 2001-2016 NLTK Project
+# Copyright (C) 2001-2019 NLTK Project
 # Authors: Steven Bird <stevenbird1@gmail.com>
 # URL: <http://nltk.org/>
 # For license information, see LICENSE.TXT
@@ -11,26 +11,29 @@ from __future__ import print_function
 
 import re
 import random
-from nltk import compat
+
+from six.moves import input
+
 
 reflections = {
-  "i am"       : "you are",
-  "i was"      : "you were",
-  "i"          : "you",
-  "i'm"        : "you are",
-  "i'd"        : "you would",
-  "i've"       : "you have",
-  "i'll"       : "you will",
-  "my"         : "your",
-  "you are"    : "I am",
-  "you were"   : "I was",
-  "you've"     : "I have",
-  "you'll"     : "I will",
-  "your"       : "my",
-  "yours"      : "mine",
-  "you"        : "me",
-  "me"         : "you"
+    "i am": "you are",
+    "i was": "you were",
+    "i": "you",
+    "i'm": "you are",
+    "i'd": "you would",
+    "i've": "you have",
+    "i'll": "you will",
+    "my": "your",
+    "you are": "I am",
+    "you were": "I was",
+    "you've": "I have",
+    "you'll": "I will",
+    "your": "my",
+    "yours": "mine",
+    "you": "me",
+    "me": "you",
 }
+
 
 class Chat(object):
     def __init__(self, pairs, reflections={}):
@@ -49,16 +52,15 @@ class Chat(object):
         :rtype: None
         """
 
-        self._pairs = [(re.compile(x, re.IGNORECASE),y) for (x,y) in pairs]
+        self._pairs = [(re.compile(x, re.IGNORECASE), y) for (x, y) in pairs]
         self._reflections = reflections
         self._regex = self._compile_reflections()
 
-
     def _compile_reflections(self):
-        sorted_refl = sorted(self._reflections.keys(), key=len,
-                reverse=True)
-        return  re.compile(r"\b({0})\b".format("|".join(map(re.escape,
-            sorted_refl))), re.IGNORECASE)
+        sorted_refl = sorted(self._reflections.keys(), key=len, reverse=True)
+        return re.compile(
+            r"\b({0})\b".format("|".join(map(re.escape, sorted_refl))), re.IGNORECASE
+        )
 
     def _substitute(self, str):
         """
@@ -70,17 +72,19 @@ class Chat(object):
         :rtype: str
         """
 
-        return self._regex.sub(lambda mo:
-                self._reflections[mo.string[mo.start():mo.end()]],
-                    str.lower())
+        return self._regex.sub(
+            lambda mo: self._reflections[mo.string[mo.start() : mo.end()]], str.lower()
+        )
 
     def _wildcards(self, response, match):
         pos = response.find('%')
         while pos >= 0:
-            num = int(response[pos+1:pos+2])
-            response = response[:pos] + \
-                self._substitute(match.group(num)) + \
-                response[pos+2:]
+            num = int(response[pos + 1 : pos + 2])
+            response = (
+                response[:pos]
+                + self._substitute(match.group(num))
+                + response[pos + 2 :]
+            )
             pos = response.find('%')
         return response
 
@@ -99,22 +103,26 @@ class Chat(object):
 
             # did the pattern match?
             if match:
-                resp = random.choice(response)    # pick a random response
-                resp = self._wildcards(resp, match) # process wildcards
+                resp = random.choice(response)  # pick a random response
+                resp = self._wildcards(resp, match)  # process wildcards
 
                 # fix munged punctuation at the end
-                if resp[-2:] == '?.': resp = resp[:-2] + '.'
-                if resp[-2:] == '??': resp = resp[:-2] + '?'
+                if resp[-2:] == '?.':
+                    resp = resp[:-2] + '.'
+                if resp[-2:] == '??':
+                    resp = resp[:-2] + '?'
                 return resp
 
     # Hold a conversation with a chatbot
     def converse(self, quit="quit"):
-        input = ""
-        while input != quit:
-            input = quit
-            try: input = compat.raw_input(">")
+        user_input = ""
+        while user_input != quit:
+            user_input = quit
+            try:
+                user_input = input(">")
             except EOFError:
-                print(input)
-            if input:
-                while input[-1] in "!.": input = input[:-1]
-                print(self.respond(input))
+                print(user_input)
+            if user_input:
+                while user_input[-1] in "!.":
+                    user_input = user_input[:-1]
+                print(self.respond(user_input))

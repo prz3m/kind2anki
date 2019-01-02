@@ -2,8 +2,9 @@
 
 # Natural Language Toolkit: Gale-Church Aligner
 #
-# Copyright (C) 2001-2013 NLTK Project
+# Copyright (C) 2001-2019 NLTK Project
 # Author: Torsten Marek <marek@ifi.uzh.ch>
+# Contributor: Cassidy Laidlaw, Liling Tan
 # URL: <http://nltk.org/>
 # For license information, see LICENSE.TXT
 
@@ -23,30 +24,49 @@ try:
     from scipy.stats import norm
     from norm import logsf as norm_logsf
 except ImportError:
+
     def erfcc(x):
         """Complementary error function."""
         z = abs(x)
         t = 1 / (1 + 0.5 * z)
-        r = t * math.exp(-z * z -
-                         1.26551223 + t *
-                         (1.00002368 + t *
-                          (.37409196 + t *
-                           (.09678418 + t *
-                            (-.18628806 + t *
-                             (.27886807 + t *
-                              (-1.13520398 + t *
-                               (1.48851587 + t *
-                                (-.82215223 + t * .17087277)))))))))
-        if x >= 0.:
+        r = t * math.exp(
+            -z * z
+            - 1.26551223
+            + t
+            * (
+                1.00002368
+                + t
+                * (
+                    0.37409196
+                    + t
+                    * (
+                        0.09678418
+                        + t
+                        * (
+                            -0.18628806
+                            + t
+                            * (
+                                0.27886807
+                                + t
+                                * (
+                                    -1.13520398
+                                    + t
+                                    * (1.48851587 + t * (-0.82215223 + t * 0.17087277))
+                                )
+                            )
+                        )
+                    )
+                )
+            )
+        )
+        if x >= 0.0:
             return r
         else:
-            return 2. - r
-
+            return 2.0 - r
 
     def norm_cdf(x):
         """Return the area under the normal distribution from M{-∞..x}."""
         return 1 - 0.5 * erfcc(x / math.sqrt(2))
-
 
     def norm_logsf(x):
         try:
@@ -76,16 +96,30 @@ class LanguageIndependent(object):
     VARIANCE_CHARACTERS = 6.8
 
 
-def trace(backlinks, source, target):
-    links = []
-    pos = (len(source), len(target))
+def trace(backlinks, source_sents_lens, target_sents_lens):
+    """
+    Traverse the alignment cost from the tracebacks and retrieves
+    appropriate sentence pairs.
 
-    while pos != (0, 0):
-        s, t = backlinks[pos]
+    :param backlinks: A dictionary where the key is the alignment points and value is the cost (referencing the LanguageIndependent.PRIORS)
+    :type backlinks: dict
+    :param source_sents_lens: A list of target sentences' lengths
+    :type source_sents_lens: list(int)
+    :param target_sents_lens: A list of target sentences' lengths
+    :type target_sents_lens: list(int)
+    """
+    links = []
+    position = (len(source_sents_lens), len(target_sents_lens))
+    while position != (0, 0) and all(p >= 0 for p in position):
+        try:
+            s, t = backlinks[position]
+        except TypeError:
+            position = (position[0] - 1, position[1] - 1)
+            continue
         for i in range(s):
             for j in range(t):
-                links.append((pos[0] - i - 1, pos[1] - j - 1))
-        pos = (pos[0] - s, pos[1] - t)
+                links.append((position[0] - i - 1, position[1] - j - 1))
+        position = (position[0] - s, position[1] - t)
 
     return links[::-1]
 
@@ -109,14 +143,16 @@ def align_log_prob(i, j, source_sents, target_sents, alignment, params):
         # actually, the paper says l_s * params.VARIANCE_CHARACTERS, this is based on the C
         # reference implementation. With l_s in the denominator, insertions are impossible.
         m = (l_s + l_t / params.AVERAGE_CHARACTERS) / 2
-        delta = (l_s * params.AVERAGE_CHARACTERS - l_t) / math.sqrt(m * params.VARIANCE_CHARACTERS)
+        delta = (l_s * params.AVERAGE_CHARACTERS - l_t) / math.sqrt(
+            m * params.VARIANCE_CHARACTERS
+        )
     except ZeroDivisionError:
         return float('-inf')
 
-    return - (LOG2 + norm_logsf(abs(delta)) + math.log(params.PRIORS[alignment]))
+    return -(LOG2 + norm_logsf(abs(delta)) + math.log(params.PRIORS[alignment]))
 
 
-def align_blocks(source_sents, target_sents, params = LanguageIndependent):
+def align_blocks(source_sents_lens, target_sents_lens, params=LanguageIndependent):
     """Return the sentence alignment of two text blocks (usually paragraphs).
 
         >>> align_blocks([5,5,5], [7,7,7])
@@ -128,8 +164,8 @@ def align_blocks(source_sents, target_sents, params = LanguageIndependent):
         >>> align_blocks([10,2,10,10,2,10], [12,3,20,3,12])
         [(0, 0), (1, 1), (2, 2), (3, 2), (4, 3), (5, 4)]
 
-    @param source_sents: The list of source sentence lengths.
-    @param target_sents: The list of target sentence lengths.
+    @param source_sents_lens: The list of source sentence lengths.
+    @param target_sents_lens: The list of target sentence lengths.
     @param params: the sentence alignment parameters.
     @return: The sentence alignments, a list of index pairs.
     """
@@ -141,16 +177,18 @@ def align_blocks(source_sents, target_sents, params = LanguageIndependent):
 
     backlinks = {}
 
-    for i in range(len(source_sents) + 1):
-        for j in range(len(target_sents) + 1):
+    for i in range(len(source_sents_lens) + 1):
+        for j in range(len(target_sents_lens) + 1):
             min_dist = float('inf')
             min_align = None
             for a in alignment_types:
-                prev_i = - 1 - a[0]
+                prev_i = -1 - a[0]
                 prev_j = j - a[1]
                 if prev_i < -len(D) or prev_j < 0:
                     continue
-                p = D[prev_i][prev_j] + align_log_prob(i, j, source_sents, target_sents, a, params)
+                p = D[prev_i][prev_j] + align_log_prob(
+                    i, j, source_sents_lens, target_sents_lens, a, params
+                )
                 if p < min_dist:
                     min_dist = p
                     min_align = a
@@ -165,18 +203,18 @@ def align_blocks(source_sents, target_sents, params = LanguageIndependent):
             D.pop(0)
         D.append([])
 
-    return trace(backlinks, source_sents, target_sents)
+    return trace(backlinks, source_sents_lens, target_sents_lens)
 
 
-def align_texts(source_blocks, target_blocks, params = LanguageIndependent):
+def align_texts(source_blocks, target_blocks, params=LanguageIndependent):
     """Creates the sentence alignment of two texts.
 
-    Texts can consist of several blocks. Block boundaries cannot be crossed by sentence 
-    alignment links. 
+    Texts can consist of several blocks. Block boundaries cannot be crossed by sentence
+    alignment links.
 
     Each block consists of a list that contains the lengths (in characters) of the sentences
     in this block.
-    
+
     @param source_blocks: The list of blocks in the source text.
     @param target_blocks: The list of blocks in the target text.
     @param params: the sentence alignment parameters.
@@ -184,41 +222,48 @@ def align_texts(source_blocks, target_blocks, params = LanguageIndependent):
     @returns: A list of sentence alignment lists
     """
     if len(source_blocks) != len(target_blocks):
-        raise ValueError("Source and target texts do not have the same number of blocks.")
-    
-    return [align_blocks(source_block, target_block, params) 
-            for source_block, target_block in zip(source_blocks, target_blocks)]
+        raise ValueError(
+            "Source and target texts do not have the same number of blocks."
+        )
+
+    return [
+        align_blocks(source_block, target_block, params)
+        for source_block, target_block in zip(source_blocks, target_blocks)
+    ]
 
 
 # File I/O functions; may belong in a corpus reader
 
+
 def split_at(it, split_value):
-    """Splits an iterator C{it} at values of C{split_value}. 
+    """Splits an iterator C{it} at values of C{split_value}.
 
     Each instance of C{split_value} is swallowed. The iterator produces
     subiterators which need to be consumed fully before the next subiterator
     can be used.
     """
+
     def _chunk_iterator(first):
         v = first
         while v != split_value:
             yield v
             v = it.next()
-    
+
     while True:
         yield _chunk_iterator(it.next())
-        
+
 
 def parse_token_stream(stream, soft_delimiter, hard_delimiter):
-    """Parses a stream of tokens and splits it into sentences (using C{soft_delimiter} tokens) 
+    """Parses a stream of tokens and splits it into sentences (using C{soft_delimiter} tokens)
     and blocks (using C{hard_delimiter} tokens) for use with the L{align_texts} function.
     """
     return [
-        [sum(len(token) for token in sentence_it) 
-         for sentence_it in split_at(block_it, soft_delimiter)]
-        for block_it in split_at(stream, hard_delimiter)]
-
-
+        [
+            sum(len(token) for token in sentence_it)
+            for sentence_it in split_at(block_it, soft_delimiter)
+        ]
+        for block_it in split_at(stream, hard_delimiter)
+    ]
 
 
 #    Code for test files in nltk_contrib/align/data/*.tok
@@ -228,8 +273,3 @@ def parse_token_stream(stream, soft_delimiter, hard_delimiter):
 #        source = parse_token_stream((l.strip() for l in s), ".EOS", ".EOP")
 #        target = parse_token_stream((l.strip() for l in t), ".EOS", ".EOP")
 #        print align_texts(source, target)
-
-
-
-
-

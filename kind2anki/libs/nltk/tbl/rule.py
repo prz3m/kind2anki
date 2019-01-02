@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 # Natural Language Toolkit: Transformation-based learning
 #
-# Copyright (C) 2001-2016 NLTK Project
+# Copyright (C) 2001-2019 NLTK Project
 # Author: Marcus Uneson <marcus.uneson@gmail.com>
 #   based on previous (nltk2) version by
 #   Christopher Maloof, Edward Loper, Steven Bird
@@ -9,15 +9,17 @@
 # For license information, see  LICENSE.TXT
 
 from __future__ import print_function
+from abc import ABCMeta, abstractmethod
+from six import add_metaclass
 
 from nltk.compat import python_2_unicode_compatible, unicode_repr
 from nltk import jsontags
 
+
 ######################################################################
 # Tag Rules
 ######################################################################
-
-
+@add_metaclass(ABCMeta)
 class TagRule(object):
     """
     An interface for tag transformations on a tagged corpus, as
@@ -71,6 +73,7 @@ class TagRule(object):
 
         return change
 
+    @abstractmethod
     def applies(self, tokens, index):
         """
         :return: True if the rule would change the tag of
@@ -81,7 +84,6 @@ class TagRule(object):
         :param index: The index to check
         :type index: int
         """
-        raise NotImplementedError
 
     # Rules must be comparable and hashable for the algorithm to work
     def __eq__(self, other):
@@ -140,15 +142,17 @@ class Rule(TagRule):
 
     def encode_json_obj(self):
         return {
-            'templateid':   self.templateid,
-            'original':     self.original_tag,
-            'replacement':  self.replacement_tag,
-            'conditions':   self._conditions,
+            'templateid': self.templateid,
+            'original': self.original_tag,
+            'replacement': self.replacement_tag,
+            'conditions': self._conditions,
         }
 
     @classmethod
     def decode_json_obj(cls, obj):
-        return cls(obj['templateid'], obj['original'], obj['replacement'], obj['conditions'])
+        return cls(
+            obj['templateid'], obj['original'], obj['replacement'], obj['conditions']
+        )
 
     def applies(self, tokens, index):
         # Inherit docs from TagRule
@@ -164,7 +168,7 @@ class Rule(TagRule):
             for pos in feature.positions:
                 if not (0 <= index + pos < len(tokens)):
                     continue
-                if feature.extract_property(tokens, index+pos) == val:
+                if feature.extract_property(tokens, index + pos) == val:
                     break
             else:
                 # No token satisfied the condition; return false.
@@ -174,12 +178,13 @@ class Rule(TagRule):
         return True
 
     def __eq__(self, other):
-        return (self is other or
-                (other is not None and
-                 other.__class__ == self.__class__ and
-                 self.original_tag == other.original_tag and
-                 self.replacement_tag == other.replacement_tag and
-                 self._conditions == other._conditions))
+        return self is other or (
+            other is not None
+            and other.__class__ == self.__class__
+            and self.original_tag == other.original_tag
+            and self.replacement_tag == other.replacement_tag
+            and self._conditions == other._conditions
+        )
 
     def __ne__(self, other):
         return not (self == other)
@@ -199,17 +204,17 @@ class Rule(TagRule):
         try:
             return self.__repr
         except AttributeError:
-            self.__repr = (
-                "{0}('{1}', {2}, {3}, [{4}])".format(
-                    self.__class__.__name__,
-                    self.templateid,
-                    unicode_repr(self.original_tag),
-                    unicode_repr(self.replacement_tag),
-
-                    # list(self._conditions) would be simpler but will not generate
-                    # the same Rule.__repr__ in python 2 and 3 and thus break some tests
-                    ', '.join("({0},{1})".format(f, unicode_repr(v)) for (f, v) in self._conditions)
-                )
+            self.__repr = "{0}('{1}', {2}, {3}, [{4}])".format(
+                self.__class__.__name__,
+                self.templateid,
+                unicode_repr(self.original_tag),
+                unicode_repr(self.replacement_tag),
+                # list(self._conditions) would be simpler but will not generate
+                # the same Rule.__repr__ in python 2 and 3 and thus break some tests
+                ', '.join(
+                    "({0},{1})".format(f, unicode_repr(v))
+                    for (f, v) in self._conditions
+                ),
             )
 
             return self.__repr
@@ -223,14 +228,14 @@ class Rule(TagRule):
             return '{0}:{1}@[{2}]'.format(
                 feature.PROPERTY_NAME,
                 value,
-                ",".join(str(w) for w in feature.positions)
+                ",".join(str(w) for w in feature.positions),
             )
 
-        conditions = ' & '.join([_condition_to_logic(f, v) for (f, v) in self._conditions])
+        conditions = ' & '.join(
+            [_condition_to_logic(f, v) for (f, v) in self._conditions]
+        )
         s = '{0}->{1} if {2}'.format(
-            self.original_tag,
-            self.replacement_tag,
-            conditions
+            self.original_tag, self.replacement_tag, conditions
         )
 
         return s
@@ -286,9 +291,13 @@ class Rule(TagRule):
 
         Not sure how useful this is.
         """
+
         def condition_to_str(feature, value):
-            return ('the %s of %s is "%s"' %
-                    (feature.PROPERTY_NAME, range_to_str(feature.positions), value))
+            return 'the %s of %s is "%s"' % (
+                feature.PROPERTY_NAME,
+                range_to_str(feature.positions),
+                value,
+            )
 
         def range_to_str(positions):
             if len(positions) == 1:
@@ -317,5 +326,3 @@ class Rule(TagRule):
             condition_to_str(f, v) for (f, v) in self._conditions
         )
         return replacement + conditions
-
-

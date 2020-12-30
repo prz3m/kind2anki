@@ -103,7 +103,7 @@ class Ui_kind2ankiDialog(object):
         self.importMode.setItemText(1, _translate("kind2ankiDialog", "Ignore lines where first field matches existing note"))
         self.importMode.setItemText(2, _translate("kind2ankiDialog", "Import even if existing note has same first field"))
         self.label.setText(_translate("kind2ankiDialog", "Language"))
-        self.includeUsage.setText(_translate("kind2ankiDialog", "Include usage examle"))
+        self.includeUsage.setText(_translate("kind2ankiDialog", "Include usage example"))
         self.label_3.setText(_translate("kind2ankiDialog", "Import words not older than"))
         self.label_4.setText(_translate("kind2ankiDialog", "days"))
         self.languageSelect.setCurrentText(_translate("kind2ankiDialog", "pl"))

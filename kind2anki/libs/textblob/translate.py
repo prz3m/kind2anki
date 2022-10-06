@@ -53,9 +53,16 @@ class Translator(object):
         )
         response = self._request(url, host=host, type_=type_, data=data)
         result = json.loads(response)
+        
+        # NOTE: this logic was changed to adapt to a new response format
         if isinstance(result, list):
             try:
-                result = result[0]  # ignore detected language
+                if isinstance(result[0], str):
+                    result = result[0]
+                elif isinstance(result[0], list) and isinstance(result[0][0], str):
+                    result = result[0][0]  # ignore detected language
+                else:
+                    raise TranslatorError('Unknown format of response data')
             except IndexError:
                 pass
         self._validate_translation(source, result)

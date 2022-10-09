@@ -8,11 +8,9 @@ https://github.com/sloria/TextBlob/blob/dev/textblob/translate.py
 Adapted from Terry Yin's google-translate-python.
 Language detection added by Steven Loria.
 """
-import codecs
 import ctypes
 import json
 from urllib import request
-from urllib.parse import quote as urlquote
 from urllib.parse import urlencode
 
 

@@ -13,21 +13,11 @@ from urllib.parse import quote
 from aqt import mw
 from functools import partial
 
-# import modules from ./libs folder
-dir_path = os.path.dirname(os.path.realpath(__file__))
-sys.path.insert(0, os.path.join(dir_path, "libs"))
-from translate import translate
+from .translate import translate
 
 
 def translateWord(word, target_language):
     return str(translate(word, to_lang=target_language))
-    # """
-    # translates word using transltr.org free api
-    # """
-    # url = "http://www.transltr.org/api/translate?text=%s&to=%s"
-    # r = urllib2.urlopen(url=url % (word, target_language))
-    # r_json = r.read().decode('utf-8')
-    # return json.loads(r_json)['translationText']
 
 
 class KindleImporter():

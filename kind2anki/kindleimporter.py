@@ -13,20 +13,14 @@ from urllib.parse import quote
 from aqt import mw
 from functools import partial
 
-
-# idea taken from Syntax Highlighting for Code addon, thanks!
-try:
-    # Try to find the modules in the global namespace:
-    from textblob import TextBlob
-except:
-    # If not present, import modules from ./libs folder
-    dir_path = os.path.dirname(os.path.realpath(__file__))
-    sys.path.insert(0, os.path.join(dir_path, "libs"))
-    from textblob import TextBlob
+# import modules from ./libs folder
+dir_path = os.path.dirname(os.path.realpath(__file__))
+sys.path.insert(0, os.path.join(dir_path, "libs"))
+from translate import translate
 
 
 def translateWord(word, target_language):
-    return str(TextBlob(word).translate(to=target_language))
+    return str(translate(word, to_lang=target_language))
     # """
     # translates word using transltr.org free api
     # """

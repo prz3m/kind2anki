@@ -1,0 +1,23 @@
+name: Test translation (check if API responds)
+
+on:
+  schedule:
+    - cron: '25 19 * * *'
+  push:
+
+jobs:
+  build:
+    name: Test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: actions/setup-python@v4
+        with:
+          python-version: '3.10'
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install pytest
+          if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
+      - name: Test
+        run: pytest

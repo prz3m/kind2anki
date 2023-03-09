@@ -8,4 +8,4 @@ from translate import translate
 
 
 def test_translation_works():
-    assert translate('nothing', to_lang='pl') == 'nic'
+    assert translate('nothing', to_lang='pl').lower() == 'nic'

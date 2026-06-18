@@ -1,0 +1,12 @@
+target-version = "py314"
+line-length = 120
+
+extend-exclude = [
+    "kind2anki/kind2anki_ui.py",
+    "kind2anki/kind2anki_ui_qt6.py",
+]
+
+[lint]
+# pyflakes (F), pycodestyle (E/W), isort (I),
+# pyupgrade (UP), flake8-bugbear (B), and comprehensions (C4).
+select = ["E", "W", "F", "I", "UP", "B", "C4"]

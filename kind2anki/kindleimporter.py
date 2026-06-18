@@ -1,23 +1,71 @@
 # coding=utf-8
 import sqlite3
-import sys
 import os
 import tempfile
-import codecs
-import json
-import urllib
 import datetime
 import time
-from urllib.parse import quote
-
-from aqt import mw
+import string
+import getpass
+from sys import platform
 from functools import partial
 
 from .translate import translate
 
+ADDON_ROOT = os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
+
 
 def translateWord(word, target_language):
     return str(translate(word, to_lang=target_language))
+
+
+def getKindleVocabPath():
+    try:
+        if platform == "win32":
+            for l in string.ascii_uppercase:
+                path = r"{}:\system\vocabulary\vocab.db".format(l)
+                if os.path.exists(path):
+                    return r"{}:\system\vocabulary".format(l)
+        elif platform == "darwin":
+            path = "/Volumes/Kindle/system/vocabulary/vocab.db"
+            if os.path.exists(path):
+                return "/Volumes/Kindle/system/vocabulary"
+        else:
+            user = getpass.getuser()
+            path = r"/media/{}/Kindle/system/vocabulary/vocab.db".format(user)
+            if os.path.exists(path):
+                return r"/media/{}/Kindle/system/vocabulary/".format(user)
+        return ""
+    except:
+        return ""
+
+
+def getLastRunFilePath():
+    return os.path.join(ADDON_ROOT, "lastRun.txt")
+
+
+def getDaysSinceTimestamp(timestamp):
+    now = datetime.datetime.now()
+    previous = datetime.datetime.fromtimestamp(timestamp)
+    return (now - previous).days
+
+
+def getDaysSinceLastRun():
+    path = getLastRunFilePath()
+    if os.path.isfile(path):
+        with open(path, "r") as f:
+            timestamp = int(f.read())
+        days = getDaysSinceTimestamp(timestamp) + 1  # round up
+    else:
+        days = 10
+
+    return days
+
+
+def writeCurrentTimestampToFile():
+    path = getLastRunFilePath()
+    now = datetime.datetime.now()
+    with open(path, "w") as f:
+        f.write(str(int(time.mktime(now.timetuple()))))
 
 
 class KindleImporter():
@@ -82,7 +130,7 @@ class KindleImporter():
         if len(self.words) == 0:
             return None
         path = os.path.join(tempfile.gettempdir(), "kind2anki_temp.txt")
-        with codecs.open(path, "w", encoding="utf-8") as f:
+        with open(path, "w", encoding="utf-8") as f:
             for w, t in zip(self.words, self.translated):
                 f.write(u"{0};{1}\n".format(w, t))
         return path

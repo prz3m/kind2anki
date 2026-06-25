@@ -1,0 +1,3 @@
+-r requirements.txt
+
+aqt==26.5

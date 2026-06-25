@@ -1,9 +1,8 @@
-# -*- coding: utf-8 -*-
 """
 Translator module that uses the Google Translate API.
 
 Adapted from TextBlob
-https://github.com/sloria/TextBlob/blob/dev/textblob/translate.py
+https://github.com/sloria/TextBlob/blob/1113403/textblob/translate.py
 
 Adapted from Terry Yin's google-translate-python.
 Language detection added by Steven Loria.

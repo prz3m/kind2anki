@@ -1,4 +1,3 @@
-# coding=utf-8
 from typing import cast
 
 from aqt.deckchooser import DeckChooser
@@ -12,7 +11,8 @@ import os
 import sqlite3
 import urllib
 
-# addon's ui (generated)
+from . import last_run
+
 if qtmajor == 5:
     from . import kind2anki_ui
 else:
@@ -23,7 +23,7 @@ from .kindleimporter import KindleImporter
 
 
 class ThreadTranslate(QThread):
-    startProgress = pyqtSignal(object, object)
+    start_progress = pyqtSignal(object, object)
     done = pyqtSignal(object, object)
 
     def __init__(self, args=None):
@@ -35,20 +35,19 @@ class ThreadTranslate(QThread):
         self.wait()
 
     def run(self):
-        self.startProgress.emit(self.dialog, "start")
-        kindleImporter = KindleImporter(*self.args)
-        kindleImporter.translateWordsFromDB()
-        temp_file_path = kindleImporter.createTemporaryFile()
+        self.start_progress.emit(self.dialog, "start")
+        kindle_importer = KindleImporter(*self.args)
+        kindle_importer.translate_words_from_db()
+        temp_file_path = kindle_importer.create_temporary_file()
         self.done.emit(self.dialog, temp_file_path)
 
 
-# moved from class beacause it cannot work as a slot :(
-def importToAnki(dialog, temp_file_path):
+def import_to_anki(dialog, temp_file_path):
     mw.progress.finish()
     if temp_file_path is not None:
         mw.progress.start(immediate=True, label="Importing...")
-        dialog.setupImporter(temp_file_path)
-        dialog.selectDeck()
+        dialog.setup_importer(temp_file_path)
+        dialog.select_deck()
 
         dialog.importer.run()
         mw.progress.finish()
@@ -63,7 +62,7 @@ def importToAnki(dialog, temp_file_path):
     showText(txt)
 
 
-def startProgressBar(dialog, nth):
+def start_progress_bar(dialog, nth):
     mw.progress.start(immediate=True, label="Processing...")
 
 
@@ -75,34 +74,34 @@ class Kind2AnkiDialog(QDialog):
         self.frm.setupUi(self)
 
         self.t = ThreadTranslate()
-        self.t.done.connect(importToAnki)
-        self.t.startProgress.connect(startProgressBar)
+        self.t.done.connect(import_to_anki)
+        self.t.start_progress.connect(start_progress_bar)
 
         b = QPushButton("Import")
-        cast(QDialogButtonBox, self.frm.buttonBox).addButton(b, QDialogButtonBox.ButtonRole.AcceptRole)
+        cast(QDialogButtonBox, self.frm.button_box).addButton(b, QDialogButtonBox.ButtonRole.AcceptRole)
         self.deck = DeckChooser(
-            self.mw, self.frm.deckArea, label=False)
-        self.frm.importMode.setCurrentIndex(
+            self.mw, self.frm.deck_area, label=False)
+        self.frm.import_mode.setCurrentIndex(
                     self.mw.pm.profile.get('importMode', 1))
 
-        self.daysSinceLastRun = kindleimporter.getDaysSinceLastRun()
-        self.frm.importDays.setValue(self.daysSinceLastRun)
+        self.days_since_last_run = last_run.get_days_since_last_run()
+        self.frm.import_days.setValue(self.days_since_last_run)
 
         self.exec()
 
     def accept(self):
         try:
-            db_path = getDBPath()
-            kindleimporter.writeCurrentTimestampToFile()  # update lastRun timestamp
+            db_path = get_db_path()
+            last_run.save_days_since_last_run()  # update lastRun timestamp
 
-            target_language = self.frm.languageSelect.currentText()
-            includeUsage = self.frm.includeUsage.isChecked()
-            doTranslate = self.frm.doTranslate.isChecked()
-            importDays = self.frm.importDays.value()
+            target_language = self.frm.language_select.currentText()
+            include_usage = self.frm.include_usage.isChecked()
+            do_translate = self.frm.do_translate.isChecked()
+            import_days = self.frm.import_days.value()
 
             self.t.dialog = self
             self.t.args = (
-                db_path, target_language, includeUsage, doTranslate, importDays
+                db_path, target_language, include_usage, do_translate, import_days
                 )
 
             self.t.start()
@@ -117,15 +116,15 @@ class Kind2AnkiDialog(QDialog):
             self.close()
             self.mw.reset()
 
-    def setupImporter(self, temp_file_path):
+    def setup_importer(self, temp_file_path):
         self.importer = TextImporter(self.mw.col, str(temp_file_path))
         self.importer.initMapping()
         self.importer.allowHTML = True
-        self.importer.importMode = self.frm.importMode.currentIndex()
+        self.importer.importMode = self.frm.import_mode.currentIndex()
         self.mw.pm.profile['importMode'] = self.importer.importMode
         self.importer.delimiter = ';'
 
-    def selectDeck(self):
+    def select_deck(self):
         did = self.deck.selectedId()
         if did != self.importer.model['did']:
             self.importer.model['did'] = did
@@ -133,8 +132,8 @@ class Kind2AnkiDialog(QDialog):
         self.mw.col.decks.select(did)
 
 
-def getDBPath():
-    vocab_path = kindleimporter.getKindleVocabPath()
+def get_db_path():
+    vocab_path = kindleimporter.get_kindle_vocab_path()
     if vocab_path == "":
         key = "Import"
         dir = None

@@ -1,5 +1,3 @@
-# coding=utf-8
-# Addon entry point: register the menu hook that opens the dialog.
 import os
 import sys
 

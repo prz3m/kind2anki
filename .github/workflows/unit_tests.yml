@@ -1,22 +1,21 @@
-name: Test translation (check if API responds)
+name: Unit tests
 
 on:
-  schedule:
-    - cron: '0 20 * * *'
   push:
+  pull_request:
 
 jobs:
-  build:
-    name: Test
+  unit:
+    name: Unit tests
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
       - uses: actions/setup-python@v4
         with:
-          python-version: '3.14'
+          python-version: '3.12'
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt
-      - name: Test translation service
-        run: pytest -m live
+      - name: Unit tests
+        run: pytest

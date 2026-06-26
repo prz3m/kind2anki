@@ -1,7 +1,7 @@
 import pytest
+import sample_vocab
 
 from kind2anki import kindleimporter
-import sample_vocab
 
 
 @pytest.fixture(scope="session")

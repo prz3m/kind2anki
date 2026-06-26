@@ -1,15 +1,13 @@
-from typing import cast
-
-from aqt.deckchooser import DeckChooser
-from aqt import mw
-from aqt.utils import showInfo, getFile, showText
-from anki.importing import TextImporter
-from aqt.qt import QThread, pyqtSignal, qtmajor, QDialogButtonBox, QPushButton, \
-    QDialog
-
 import os
 import sqlite3
 import urllib
+from typing import cast
+
+from anki.importing import TextImporter
+from aqt import mw
+from aqt.deckchooser import DeckChooser
+from aqt.qt import QDialog, QDialogButtonBox, QPushButton, QThread, pyqtSignal, qtmajor
+from aqt.utils import getFile, showInfo, showText
 
 from . import last_run
 
@@ -79,10 +77,8 @@ class Kind2AnkiDialog(QDialog):
 
         b = QPushButton("Import")
         cast(QDialogButtonBox, self.frm.button_box).addButton(b, QDialogButtonBox.ButtonRole.AcceptRole)
-        self.deck = DeckChooser(
-            self.mw, self.frm.deck_area, label=False)
-        self.frm.import_mode.setCurrentIndex(
-                    self.mw.pm.profile.get('importMode', 1))
+        self.deck = DeckChooser(self.mw, self.frm.deck_area, label=False)
+        self.frm.import_mode.setCurrentIndex(self.mw.pm.profile.get("importMode", 1))
 
         self.days_since_last_run = last_run.get_days_since_last_run()
         self.frm.import_days.setValue(self.days_since_last_run)
@@ -100,15 +96,13 @@ class Kind2AnkiDialog(QDialog):
             import_days = self.frm.import_days.value()
 
             self.t.dialog = self
-            self.t.args = (
-                db_path, target_language, include_usage, do_translate, import_days
-                )
+            self.t.args = (db_path, target_language, include_usage, do_translate, import_days)
 
             self.t.start()
 
         except urllib.error.URLError:
             showInfo("Cannot connect")
-        except IOError:
+        except OSError:
             showInfo("DB file not selected, exiting")
         except sqlite3.DatabaseError:
             showInfo("Selected file is not a DB")
@@ -121,13 +115,13 @@ class Kind2AnkiDialog(QDialog):
         self.importer.initMapping()
         self.importer.allowHTML = True
         self.importer.importMode = self.frm.import_mode.currentIndex()
-        self.mw.pm.profile['importMode'] = self.importer.importMode
-        self.importer.delimiter = ';'
+        self.mw.pm.profile["importMode"] = self.importer.importMode
+        self.importer.delimiter = ";"
 
     def select_deck(self):
         did = self.deck.selectedId()
-        if did != self.importer.model['did']:
-            self.importer.model['did'] = did
+        if did != self.importer.model["did"]:
+            self.importer.model["did"] = did
             self.mw.col.models.save(self.importer.model)
         self.mw.col.decks.select(did)
 
@@ -140,10 +134,8 @@ def get_db_path():
     else:
         key = None
         dir = vocab_path
-    db_path = getFile(
-        mw, "Select db file", None, dir=dir, key=key, filter="*.db"
-    )
+    db_path = getFile(mw, "Select db file", None, dir=dir, key=key, filter="*.db")
     if not db_path:
-        raise IOError
+        raise OSError
     db_path = str(db_path)
     return db_path

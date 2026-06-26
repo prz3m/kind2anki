@@ -26,7 +26,7 @@ def _get_days_since_timestamp(timestamp):
 def get_days_since_last_run():
     path = _get_last_run_file_path()
     if os.path.isfile(path):
-        with open(path, "r") as f:
+        with open(path) as f:
             timestamp = int(f.read())
         days = _get_days_since_timestamp(timestamp) + 1  # round up
     else:

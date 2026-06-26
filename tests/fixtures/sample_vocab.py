@@ -1,3 +1,6 @@
+# The SQL schema below mirrors Kindle's real vocab.db DDL verbatim; the
+# CREATE TABLE statements can't be wrapped without distorting the fixture.
+# ruff: noqa: E501
 import datetime
 import os
 import sqlite3
@@ -17,11 +20,30 @@ BOOKS = [
 DICT = ("EN-DICT", "en", "en")
 
 WORDS = [
-    "apple", "house", "river", "music", "garden",
-    "window", "coffee", "mountain", "pencil", "bridge",
-    "summer", "yellow", "table", "forest", "candle",
-    "orange", "silver", "pocket", "ocean", "ladder",
-    "button", "cloud", "kitten", "honey",
+    "apple",
+    "house",
+    "river",
+    "music",
+    "garden",
+    "window",
+    "coffee",
+    "mountain",
+    "pencil",
+    "bridge",
+    "summer",
+    "yellow",
+    "table",
+    "forest",
+    "candle",
+    "orange",
+    "silver",
+    "pocket",
+    "ocean",
+    "ladder",
+    "button",
+    "cloud",
+    "kitten",
+    "honey",
 ]
 WORD_COUNT = len(WORDS)
 
@@ -60,8 +82,7 @@ def build(db_path):
 
         for book_id, title, authors in BOOKS:
             c.execute(
-                "INSERT INTO BOOK_INFO (id, asin, guid, lang, title, authors) "
-                "VALUES (?, ?, ?, ?, ?, ?)",
+                "INSERT INTO BOOK_INFO (id, asin, guid, lang, title, authors) VALUES (?, ?, ?, ?, ?, ?)",
                 (book_id, book_id, book_id, LANG, title, authors),
             )
 
@@ -72,29 +93,33 @@ def build(db_path):
         )
 
         for i, word in enumerate(WORDS):
-            word_id = "%s:%s" % (LANG, word)
+            word_id = f"{LANG}:{word}"
             ts = _ms(base + datetime.timedelta(minutes=i))
             c.execute(
-                "INSERT INTO WORDS (id, word, stem, lang, category, timestamp, "
-                "profileid) VALUES (?, ?, ?, ?, ?, ?, ?)",
+                "INSERT INTO WORDS (id, word, stem, lang, category, timestamp, profileid) VALUES (?, ?, ?, ?, ?, ?, ?)",
                 (word_id, word, word, LANG, 0, ts, ""),
             )
 
             book_id = BOOKS[i % len(BOOKS)][0]
             # Usage contains the word so the "include usage" path has something
             # to bold; the semicolon exercises the ';' -> ',' sanitising.
-            usage = ('The author chose the word "%s" with care; '
-                     'a %s sentence reads more clearly.' % (word, word))
+            usage = f'The author chose the word "{word}" with care; a {word} sentence reads more clearly.'
             c.execute(
                 "INSERT INTO LOOKUPS (id, word_key, book_key, dict_key, pos, "
                 "usage, timestamp) VALUES (?, ?, ?, ?, ?, ?, ?)",
-                ("%s:%s:%d" % (book_id, word_id, i), word_id, book_id,
-                 dict_id, "0", usage, ts + 50),
+                (
+                    f"{book_id}:{word_id}:{i}",
+                    word_id,
+                    book_id,
+                    dict_id,
+                    "0",
+                    usage,
+                    ts + 50,
+                ),
             )
 
         for ds in ("WORDS", "LOOKUPS"):
-            c.execute("INSERT INTO VERSION (id, dsname, value) VALUES (?, ?, ?)",
-                      (ds, ds, 1))
+            c.execute("INSERT INTO VERSION (id, dsname, value) VALUES (?, ?, ?)", (ds, ds, 1))
 
         conn.commit()
     finally:
@@ -102,8 +127,10 @@ def build(db_path):
 
 
 if __name__ == "__main__":
-    out = (sys.argv[1] if len(sys.argv) > 1
-           else os.path.join(os.path.dirname(os.path.realpath(__file__)),
-                             "sample_vocab.db"))
+    out = (
+        sys.argv[1]
+        if len(sys.argv) > 1
+        else os.path.join(os.path.dirname(os.path.realpath(__file__)), "sample_vocab.db")
+    )
     build(out)
-    print("wrote %s with %d words" % (out, WORD_COUNT))
+    print(f"wrote {out} with {WORD_COUNT} words")

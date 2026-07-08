@@ -6,7 +6,7 @@ from typing import cast
 from anki.importing import TextImporter
 from aqt import mw
 from aqt.deckchooser import DeckChooser
-from aqt.qt import QDialog, QDialogButtonBox, QPushButton, QThread, pyqtSignal, qtmajor
+from aqt.qt import QDialog, QDialogButtonBox, QPushButton, qtmajor
 from aqt.utils import getFile, showInfo, showText
 
 from . import config_manager, last_run
@@ -20,60 +20,12 @@ from . import kindleimporter
 from .kindleimporter import KindleImporter
 
 
-class ThreadTranslate(QThread):
-    start_progress = pyqtSignal(object, object)
-    done = pyqtSignal(object, object)
-
-    def __init__(self, args=None):
-        QThread.__init__(self)
-        self.args = args
-        self.dialog = None
-
-    def __del__(self):
-        self.wait()
-
-    def run(self):
-        self.start_progress.emit(self.dialog, "start")
-        kindle_importer = KindleImporter(*self.args)
-        kindle_importer.translate_words_from_db()
-        temp_file_path = kindle_importer.create_temporary_file()
-        self.done.emit(self.dialog, temp_file_path)
-
-
-def import_to_anki(dialog, temp_file_path):
-    mw.progress.finish()
-    if temp_file_path is not None:
-        mw.progress.start(immediate=True, label="Importing...")
-        dialog.setup_importer(temp_file_path)
-        dialog.select_deck()
-
-        dialog.importer.run()
-        mw.progress.finish()
-
-        txt = "Importing complete.\n"
-        if dialog.importer.log:
-            txt += "\n".join(dialog.importer.log)
-
-        os.remove(temp_file_path)
-    else:
-        txt = "Nothing to import!"
-    showText(txt)
-
-
-def start_progress_bar(dialog, nth):
-    mw.progress.start(immediate=True, label="Processing...")
-
-
 class Kind2AnkiDialog(QDialog):
     def __init__(self):
         QDialog.__init__(self)
         self.mw = mw
         self.frm = kind2anki_ui.Ui_kind2ankiDialog()
         self.frm.setupUi(self)
-
-        self.t = ThreadTranslate()
-        self.t.done.connect(import_to_anki)
-        self.t.start_progress.connect(start_progress_bar)
 
         b = QPushButton("Import")
         cast(QDialogButtonBox, self.frm.button_box).addButton(b, QDialogButtonBox.ButtonRole.AcceptRole)
@@ -88,42 +40,78 @@ class Kind2AnkiDialog(QDialog):
     def accept(self):
         try:
             db_path = get_db_path()
-            last_run.save_days_since_last_run()  # update lastRun timestamp
-
-            target_language = self.frm.language_select.currentText()
-            include_usage = self.frm.include_usage.isChecked()
-            do_translate = self.frm.do_translate.isChecked()
-            import_days = self.frm.import_days.value()
-
-            self.t.dialog = self
-            self.t.args = (db_path, target_language, include_usage, do_translate, import_days)
-
-            self.t.start()
-
-        except urllib.error.URLError:
-            showInfo("Cannot connect")
         except OSError:
             showInfo("DB file not selected, exiting")
-        except sqlite3.DatabaseError:
-            showInfo("Selected file is not a DB")
-        finally:
             self.close()
-            self.mw.reset()
+            return
 
-    def setup_importer(self, temp_file_path):
-        self.importer = TextImporter(self.mw.col, str(temp_file_path))
-        self.importer.initMapping()
-        self.importer.allowHTML = True
-        self.importer.importMode = self.frm.import_mode.currentIndex()
-        config_manager.set_import_mode(self.importer.importMode)
-        self.importer.delimiter = ";"
+        last_run.save_days_since_last_run()  # update lastRun timestamp
 
-    def select_deck(self):
-        did = self.deck.selectedId()
-        if did != self.importer.model["did"]:
-            self.importer.model["did"] = did
-            self.mw.col.models.save(self.importer.model)
-        self.mw.col.decks.select(did)
+        target_language = self.frm.language_select.currentText()
+        include_usage = self.frm.include_usage.isChecked()
+        do_translate = self.frm.do_translate.isChecked()
+        import_days = self.frm.import_days.value()
+        import_mode = self.frm.import_mode.currentIndex()
+        config_manager.set_import_mode(import_mode)
+        deck_id = self.deck.selectedId()
+
+        self.close()
+
+        self.mw.progress.start(immediate=True, label="Processing...")
+        self.mw.taskman.run_in_background(
+            lambda: translate_words(db_path, target_language, include_usage, do_translate, import_days),
+            lambda fut: on_translated(fut, deck_id, import_mode),
+        )
+
+
+def translate_words(db_path, target_language, include_usage, do_translate, import_days):
+    kindle_importer = KindleImporter(db_path, target_language, include_usage, do_translate, import_days)
+    kindle_importer.translate_words_from_db()
+    return kindle_importer.create_temporary_file()
+
+
+def on_translated(fut, deck_id, import_mode):
+    mw.progress.finish()
+    try:
+        temp_file_path = fut.result()
+    except urllib.error.URLError:
+        showInfo("Cannot connect")
+    except sqlite3.DatabaseError:
+        showInfo("Selected file is not a DB")
+    else:
+        if temp_file_path is None:
+            showText("Nothing to import!")
+        else:
+            import_to_anki(temp_file_path, deck_id, import_mode)
+    mw.reset()
+
+
+def import_to_anki(temp_file_path, deck_id, import_mode):
+    mw.progress.start(immediate=True, label="Importing...")
+    importer = build_importer(temp_file_path, deck_id, import_mode)
+    importer.run()
+    mw.progress.finish()
+
+    txt = "Importing complete.\n"
+    if importer.log:
+        txt += "\n".join(importer.log)
+
+    os.remove(temp_file_path)
+    showText(txt)
+
+
+def build_importer(temp_file_path, deck_id, import_mode):
+    importer = TextImporter(mw.col, str(temp_file_path))
+    importer.initMapping()
+    importer.allowHTML = True
+    importer.importMode = import_mode
+    importer.delimiter = ";"
+
+    if deck_id != importer.model["did"]:
+        importer.model["did"] = deck_id
+        mw.col.models.save(importer.model)
+    mw.col.decks.select(deck_id)
+    return importer
 
 
 def get_db_path():

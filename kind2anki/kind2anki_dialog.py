@@ -9,7 +9,7 @@ from aqt.deckchooser import DeckChooser
 from aqt.qt import QDialog, QDialogButtonBox, QPushButton, QThread, pyqtSignal, qtmajor
 from aqt.utils import getFile, showInfo, showText
 
-from . import last_run
+from . import config_manager, last_run
 
 if qtmajor == 5:
     from . import kind2anki_ui
@@ -78,7 +78,7 @@ class Kind2AnkiDialog(QDialog):
         b = QPushButton("Import")
         cast(QDialogButtonBox, self.frm.button_box).addButton(b, QDialogButtonBox.ButtonRole.AcceptRole)
         self.deck = DeckChooser(self.mw, self.frm.deck_area, label=False)
-        self.frm.import_mode.setCurrentIndex(self.mw.pm.profile.get("importMode", 1))
+        self.frm.import_mode.setCurrentIndex(config_manager.get_import_mode())
 
         self.days_since_last_run = last_run.get_days_since_last_run()
         self.frm.import_days.setValue(self.days_since_last_run)
@@ -115,7 +115,7 @@ class Kind2AnkiDialog(QDialog):
         self.importer.initMapping()
         self.importer.allowHTML = True
         self.importer.importMode = self.frm.import_mode.currentIndex()
-        self.mw.pm.profile["importMode"] = self.importer.importMode
+        config_manager.set_import_mode(self.importer.importMode)
         self.importer.delimiter = ";"
 
     def select_deck(self):

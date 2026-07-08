@@ -1,20 +1,30 @@
 import datetime
-import os
 import time
-from pathlib import Path
 
-ROOT_FOLDER = Path(__file__).resolve().parent.parent
+ADDON_PACKAGE = __name__.split(".")[0]
+CONFIG_KEY = "lastRun"
+DEFAULT_DAYS = 10
 
 
-def _get_last_run_file_path():
-    return str(ROOT_FOLDER / "lastRun.txt")
+def _addon_manager():
+    from aqt import mw
+
+    return mw.addonManager
+
+
+def _read_config():
+    return _addon_manager().getConfig(ADDON_PACKAGE) or {}
+
+
+def _write_config(config):
+    _addon_manager().writeConfig(ADDON_PACKAGE, config)
 
 
 def save_days_since_last_run():
-    path = _get_last_run_file_path()
+    config = _read_config()
     now = datetime.datetime.now()
-    with open(path, "w") as f:
-        f.write(str(int(time.mktime(now.timetuple()))))
+    config[CONFIG_KEY] = int(time.mktime(now.timetuple()))
+    _write_config(config)
 
 
 def _get_days_since_timestamp(timestamp):
@@ -24,12 +34,10 @@ def _get_days_since_timestamp(timestamp):
 
 
 def get_days_since_last_run():
-    path = _get_last_run_file_path()
-    if os.path.isfile(path):
-        with open(path) as f:
-            timestamp = int(f.read())
+    timestamp = _read_config().get(CONFIG_KEY)
+    if timestamp:
         days = _get_days_since_timestamp(timestamp) + 1  # round up
     else:
-        days = 10
+        days = DEFAULT_DAYS
 
     return days

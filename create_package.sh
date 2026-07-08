@@ -7,4 +7,4 @@ OUT="kind2anki.ankiaddon"
 
 rm -f "$OUT"
 
-zip -r "$OUT" manifest.json __init__.py kind2anki -x "**/__pycache__/*"
+zip -r "$OUT" manifest.json config.json __init__.py kind2anki -x "**/__pycache__/*"

@@ -1,3 +1,4 @@
+import csv
 from pathlib import Path
 
 import pytest
@@ -94,3 +95,17 @@ def test_create_temporary_file_returns_none_when_there_is_nothing_to_import(db_p
     importer.translate_words_from_db()
 
     assert importer.create_temporary_file() is None
+
+
+def test_create_temporary_file_quotes_translation_containing_the_delimiter(db_path, monkeypatch):
+    monkeypatch.setattr(kindleimporter, "translate", lambda word, to_lang=None: "a;b")
+
+    importer = KindleImporter(db_path, "pl", do_translate=True, import_days=DAYS_COVERING_ALL_WORDS)
+    importer.translate_words_from_db()
+    path = importer.create_temporary_file()
+
+    with open(path, encoding="utf-8", newline="") as f:
+        rows = list(csv.reader(f, delimiter=";"))
+
+    assert rows, "expected at least one row"
+    assert all(row[1] == "a;b" for row in rows)

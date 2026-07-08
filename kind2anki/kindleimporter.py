@@ -1,3 +1,4 @@
+import csv
 import datetime
 import getpass
 import os
@@ -77,7 +78,7 @@ class KindleImporter:
                 usages = c.fetchall()
                 for usage in usages:
                     usage = usage[0].replace(word, f"<b>{word}</b>")
-                    translated_word += usage.replace(";", ",") + "<hr>"
+                    translated_word += usage + "<hr>"
 
             if self.do_translate:
                 try:
@@ -93,8 +94,9 @@ class KindleImporter:
     def create_temporary_file(self):
         if len(self.words) == 0:
             return None
-        path = os.path.join(tempfile.gettempdir(), "kind2anki_temp.txt")
-        with open(path, "w", encoding="utf-8") as f:
+        path = os.path.join(tempfile.gettempdir(), "kind2anki_temp.csv")
+        with open(path, "w", encoding="utf-8", newline="") as f:
+            writer = csv.writer(f, delimiter=";", lineterminator="\n")
             for w, t in zip(self.words, self.translated, strict=False):
-                f.write(f"{w};{t}\n")
+                writer.writerow([w, t])
         return path

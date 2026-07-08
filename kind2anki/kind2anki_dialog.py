@@ -3,7 +3,7 @@ import sqlite3
 import urllib
 from typing import cast
 
-from anki.importing import TextImporter
+from anki.collection import CsvMetadata, ImportCsvRequest
 from aqt import mw
 from aqt.deckchooser import DeckChooser
 from aqt.qt import QDialog, QDialogButtonBox, QPushButton, qtmajor
@@ -19,6 +19,12 @@ else:
 from . import kindleimporter
 from .kindleimporter import KindleImporter
 
+DUPE_RESOLUTION_BY_INDEX = (
+    CsvMetadata.DupeResolution.UPDATE,
+    CsvMetadata.DupeResolution.PRESERVE,
+    CsvMetadata.DupeResolution.DUPLICATE,
+)
+
 
 class Kind2AnkiDialog(QDialog):
     def __init__(self):
@@ -30,6 +36,11 @@ class Kind2AnkiDialog(QDialog):
         b = QPushButton("Import")
         cast(QDialogButtonBox, self.frm.button_box).addButton(b, QDialogButtonBox.ButtonRole.AcceptRole)
         self.deck = DeckChooser(self.mw, self.frm.deck_area, label=False)
+
+        tr = self.mw.col.tr
+        self.frm.import_mode.setItemText(0, tr.importing_update_existing_notes_when_first_field())
+        self.frm.import_mode.setItemText(1, tr.importing_ignore_lines_where_first_field_matches())
+        self.frm.import_mode.setItemText(2, tr.importing_import_even_if_existing_note_has())
         self.frm.import_mode.setCurrentIndex(config_manager.get_import_mode())
 
         self.days_since_last_run = last_run.get_days_since_last_run()
@@ -53,6 +64,7 @@ class Kind2AnkiDialog(QDialog):
         import_days = self.frm.import_days.value()
         import_mode = self.frm.import_mode.currentIndex()
         config_manager.set_import_mode(import_mode)
+        dupe_resolution = DUPE_RESOLUTION_BY_INDEX[import_mode]
         deck_id = self.deck.selectedId()
 
         self.close()
@@ -60,7 +72,7 @@ class Kind2AnkiDialog(QDialog):
         self.mw.progress.start(immediate=True, label="Processing...")
         self.mw.taskman.run_in_background(
             lambda: translate_words(db_path, target_language, include_usage, do_translate, import_days),
-            lambda fut: on_translated(fut, deck_id, import_mode),
+            lambda fut: on_translated(fut, deck_id, dupe_resolution),
         )
 
 
@@ -70,7 +82,7 @@ def translate_words(db_path, target_language, include_usage, do_translate, impor
     return kindle_importer.create_temporary_file()
 
 
-def on_translated(fut, deck_id, import_mode):
+def on_translated(fut, deck_id, dupe_resolution):
     mw.progress.finish()
     try:
         temp_file_path = fut.result()
@@ -82,36 +94,48 @@ def on_translated(fut, deck_id, import_mode):
         if temp_file_path is None:
             showText("Nothing to import!")
         else:
-            import_to_anki(temp_file_path, deck_id, import_mode)
+            import_to_anki(temp_file_path, deck_id, dupe_resolution)
     mw.reset()
 
 
-def import_to_anki(temp_file_path, deck_id, import_mode):
+def import_to_anki(temp_file_path, deck_id, dupe_resolution):
     mw.progress.start(immediate=True, label="Importing...")
-    importer = build_importer(temp_file_path, deck_id, import_mode)
-    importer.run()
+    request = ImportCsvRequest(path=temp_file_path, metadata=build_csv_metadata(deck_id, dupe_resolution))
+    response = mw.col.import_csv(request)
     mw.progress.finish()
 
-    txt = "Importing complete.\n"
-    if importer.log:
-        txt += "\n".join(importer.log)
-
     os.remove(temp_file_path)
-    showText(txt)
+    showText(format_import_log(response))
 
 
-def build_importer(temp_file_path, deck_id, import_mode):
-    importer = TextImporter(mw.col, str(temp_file_path))
-    importer.initMapping()
-    importer.allowHTML = True
-    importer.importMode = import_mode
-    importer.delimiter = ";"
+def build_csv_metadata(deck_id, dupe_resolution):
+    notetype = mw.col.models.current()
+    field_count = len(notetype["flds"])
+    # Which CSV column fills each note-type field (1-based; 0 = leave empty).
+    # Field 1 <- word, field 2 <- translation; any further fields stay empty.
+    field_columns = [1, 2] + [0] * (field_count - 2)
 
-    if deck_id != importer.model["did"]:
-        importer.model["did"] = deck_id
-        mw.col.models.save(importer.model)
-    mw.col.decks.select(deck_id)
-    return importer
+    return CsvMetadata(
+        delimiter=CsvMetadata.Delimiter.SEMICOLON,
+        force_delimiter=True,
+        is_html=True,
+        force_is_html=True,
+        deck_id=deck_id,
+        global_notetype=CsvMetadata.MappedNotetype(id=notetype["id"], field_columns=field_columns),
+        dupe_resolution=dupe_resolution,
+    )
+
+
+def format_import_log(response):
+    summary = response.log
+    return "\n".join(
+        [
+            "Importing complete.",
+            f"Notes added: {len(summary.new)}",
+            f"Notes updated: {len(summary.updated)}",
+            f"Duplicates: {len(summary.duplicate)}",
+        ]
+    )
 
 
 def get_db_path():

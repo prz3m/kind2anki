@@ -56,8 +56,6 @@ class Kind2AnkiDialog(QDialog):
             self.close()
             return
 
-        last_run.save_days_since_last_run()  # update lastRun timestamp
-
         target_language = self.frm.language_select.currentText()
         include_usage = self.frm.include_usage.isChecked()
         do_translate = self.frm.do_translate.isChecked()
@@ -95,6 +93,7 @@ def on_translated(fut, deck_id, dupe_resolution):
             showText("Nothing to import!")
         else:
             import_to_anki(temp_file_path, deck_id, dupe_resolution)
+        last_run.save_days_since_last_run()
     mw.reset()
 
 

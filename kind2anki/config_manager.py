@@ -1,11 +1,3 @@
-"""Single entry point for this add-on's persistent configuration.
-
-Values are stored in Anki's add-on config: defaults come from ``config.json``
-and the user's overrides live in ``meta.json``, so they survive add-on updates.
-Nothing outside this module should touch ``mw.addonManager`` config or
-``mw.pm.profile`` directly.
-"""
-
 LAST_RUN_KEY = "lastRun"
 IMPORT_MODE_KEY = "importMode"
 

@@ -34,7 +34,7 @@ def test_skips_words_older_than_the_window(db_path):
 
 def test_each_word_is_translated_into_the_target_language(db_path, monkeypatch):
     def fake_translate(word, to_lang=None):
-        return f"{word}->{to_lang}"
+        return f"{word} in {to_lang}"
 
     monkeypatch.setattr(kindleimporter, "translate", fake_translate)
 
@@ -42,7 +42,7 @@ def test_each_word_is_translated_into_the_target_language(db_path, monkeypatch):
     importer.translate_words_from_db()
 
     for word, translation in zip(importer.words, importer.translated, strict=False):
-        assert translation == f"{word}->de"
+        assert translation == f"{word} in de"
 
 
 def test_failed_translation_is_recorded_as_cannot_translate(db_path, monkeypatch):

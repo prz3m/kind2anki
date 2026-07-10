@@ -1,7 +1,9 @@
 import csv
 import datetime
 import getpass
+import html
 import os
+import re
 import sqlite3
 import string
 import tempfile
@@ -77,13 +79,15 @@ class KindleImporter:
             if self.include_usage:
                 c.execute("SELECT usage FROM LOOKUPS WHERE word_key = ?", [word_key])
                 usages = c.fetchall()
+                escaped_word = html.escape(word, quote=False)
+                word_pattern = re.compile(rf"\b{re.escape(escaped_word)}\b", re.IGNORECASE)
                 for usage in usages:
-                    usage = usage[0].replace(word, f"<b>{word}</b>")
+                    usage = word_pattern.sub(r"<b>\g<0></b>", html.escape(usage[0], quote=False))
                     translated_word += usage + "<hr>"
 
             if self.do_translate:
                 try:
-                    translated_word += translate(word)
+                    translated_word += html.escape(translate(word), quote=False)
                 except Exception:
                     translated_word += "cannot translate"
 
@@ -99,5 +103,5 @@ class KindleImporter:
         with open(path, "w", encoding="utf-8", newline="") as f:
             writer = csv.writer(f, delimiter=";", lineterminator="\n")
             for w, t in zip(self.words, self.translated, strict=False):
-                writer.writerow([w, t])
+                writer.writerow([html.escape(w, quote=False), t])
         return path

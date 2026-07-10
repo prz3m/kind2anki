@@ -29,9 +29,10 @@ def get_kindle_vocab_path():
                 return "/Volumes/Kindle/system/vocabulary"
         else:
             user = getpass.getuser()
-            path = rf"/media/{user}/Kindle/system/vocabulary/vocab.db"
-            if os.path.exists(path):
-                return rf"/media/{user}/Kindle/system/vocabulary/"
+            for mount_root in (f"/media/{user}", f"/run/media/{user}"):
+                path = f"{mount_root}/Kindle/system/vocabulary"
+                if os.path.exists(f"{path}/vocab.db"):
+                    return path
         return ""
     except Exception:
         return ""

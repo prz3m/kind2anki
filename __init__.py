@@ -4,7 +4,6 @@ from typing import cast
 from aqt.deckchooser import DeckChooser
 from aqt import mw
 from aqt.utils import showInfo, getFile, showText
-from anki.importing import TextImporter
 from aqt.qt import QThread, pyqtSignal, qtmajor, QDialogButtonBox, QPushButton, \
 QAction, QDialog
 
@@ -29,6 +28,7 @@ else:
     from .kind2anki import kind2anki_ui_qt6 as kind2anki_ui
 
 from .kind2anki.kindleimporter import KindleImporter
+from .kind2anki.ankiimport import importIntoCollection
 
 
 class ThreadTranslate(QThread):
@@ -54,21 +54,21 @@ class ThreadTranslate(QThread):
 # moved from class beacause it cannot work as a slot :(
 def importToAnki(dialog, temp_file_path):
     mw.progress.finish()
-    if temp_file_path is not None:
-        mw.progress.start(immediate=True, label="Importing...")
-        dialog.setupImporter(temp_file_path)
-        dialog.selectDeck()
+    if temp_file_path is None:
+        showText("Nothing to import!")
+        return
 
-        dialog.importer.run()
+    mw.progress.start(immediate=True, label="Importing...")
+    try:
+        log = dialog.runImport(temp_file_path)
+    finally:
         mw.progress.finish()
-
-        txt = "Importing complete.\n"
-        if dialog.importer.log:
-            txt += "\n".join(dialog.importer.log)
-
         os.remove(temp_file_path)
-    else:
-        txt = "Nothing to import!"
+    mw.reset()
+
+    txt = "Importing complete.\n"
+    if log:
+        txt += "\n".join(log)
     showText(txt)
 
 
@@ -127,20 +127,19 @@ class Kind2AnkiDialog(QDialog):
             self.close()
             self.mw.reset()
 
-    def setupImporter(self, temp_file_path):
-        self.importer = TextImporter(self.mw.col, str(temp_file_path))
-        self.importer.initMapping()
-        self.importer.allowHTML = True
-        self.importer.importMode = self.frm.importMode.currentIndex()
-        self.mw.pm.profile['importMode'] = self.importer.importMode
-        self.importer.delimiter = ';'
+    def runImport(self, temp_file_path):
+        importMode = self.frm.importMode.currentIndex()
+        self.mw.pm.profile['importMode'] = importMode
+        return importIntoCollection(
+            self.mw.col, str(temp_file_path), self.selectedDeckId(), importMode
+        )
 
-    def selectDeck(self):
-        did = self.deck.selectedId()
-        if did != self.importer.model['did']:
-            self.importer.model['did'] = did
-            self.mw.col.models.save(self.importer.model)
-        self.mw.col.decks.select(did)
+    def selectedDeckId(self):
+        # renamed in newer Anki builds; the old name is still aliased, but
+        # prefer the current one
+        if hasattr(self.deck, "selected_deck_id"):
+            return self.deck.selected_deck_id
+        return self.deck.selectedId()
 
     def getDaysSinceLastRun(self):
         path = self.getLastRunFilePath()

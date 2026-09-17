@@ -1,4 +1,5 @@
 # coding=utf-8
+import csv
 import sqlite3
 import sys
 import os
@@ -14,6 +15,7 @@ from aqt import mw
 from functools import partial
 
 from .translate import translate
+from .ankiimport import DELIMITER
 
 
 def translateWord(word, target_language):
@@ -65,7 +67,7 @@ class KindleImporter():
                 usages = c.fetchall()
                 for usage in usages:
                     usage = usage[0].replace(word, "<b>%s</b>" % word)
-                    translated_word += usage.replace(";", ",") + "<hr>"
+                    translated_word += usage + "<hr>"
 
             if self.doTranslate:
                 try:
@@ -82,7 +84,10 @@ class KindleImporter():
         if len(self.words) == 0:
             return None
         path = os.path.join(tempfile.gettempdir(), "kind2anki_temp.txt")
+        # a real CSV writer, so that delimiters, quotes and newlines occurring
+        # in a usage example survive Anki's CSV parser untouched
         with codecs.open(path, "w", encoding="utf-8") as f:
+            writer = csv.writer(f, delimiter=DELIMITER, lineterminator="\n")
             for w, t in zip(self.words, self.translated):
-                f.write(u"{0};{1}\n".format(w, t))
+                writer.writerow([w, t])
         return path

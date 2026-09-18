@@ -4,22 +4,21 @@ import urllib.error
 from concurrent.futures import Future
 from typing import cast
 
-from anki.collection import CsvMetadata, ImportCsvRequest, ImportLogWithChanges
+from anki.collection import CsvMetadata
 from anki.decks import DeckId
 from aqt import mw
 from aqt.deckchooser import DeckChooser
 from aqt.qt import QDialog, QDialogButtonBox, QPushButton, qtmajor
 from aqt.utils import getFile, showInfo, showText
 
-from . import config_manager, last_run
+from . import config_manager, csv_importer, kindleimporter, last_run
+from .kindleimporter import KindleImporter
 
 if qtmajor == 5:
     from . import kind2anki_ui
 else:
     from . import kind2anki_ui_qt6 as kind2anki_ui
 
-from . import kindleimporter
-from .kindleimporter import KindleImporter
 
 DupeResolutionValue = CsvMetadata.DupeResolution.ValueType
 
@@ -87,78 +86,32 @@ def on_translated(fut: Future[str | None], deck_id: DeckId, dupe_resolution: Dup
     mw.progress.finish()
     try:
         temp_file_path = fut.result()
-    except urllib.error.URLError:
-        showInfo("Cannot connect")
-    except sqlite3.DatabaseError:
-        showInfo("Selected file is not a DB")
-    else:
         if temp_file_path is None:
             showText("Nothing to import!")
         else:
             import_to_anki(temp_file_path, deck_id, dupe_resolution)
+    except urllib.error.URLError:
+        showInfo("Cannot connect")
+    except sqlite3.DatabaseError:
+        showInfo("Selected file is not a DB")
+    except csv_importer.CsvImportError as error:
+        showInfo(str(error))
+    else:
         last_run.save_days_since_last_run()
-    mw.reset()
+    finally:
+        mw.reset()
 
 
 def import_to_anki(temp_file_path: str, deck_id: DeckId, dupe_resolution: DupeResolutionValue) -> None:
     assert mw.col is not None
     mw.progress.start(immediate=True, label="Importing...")
     try:
-        request = ImportCsvRequest(path=temp_file_path, metadata=build_csv_metadata(deck_id, dupe_resolution))
-        response = mw.col.import_csv(request)
+        response = csv_importer.import_csv(mw.col, temp_file_path, deck_id, dupe_resolution)
     finally:
         mw.progress.finish()
         os.remove(temp_file_path)
-    showText(format_import_log(response))
 
-
-def build_csv_metadata(deck_id: DeckId, dupe_resolution: DupeResolutionValue) -> CsvMetadata:
-    assert mw.col is not None
-    notetype = mw.col.models.by_name("Basic")
-    if notetype is None:
-        raise LookupError("The Basic note type was not found. Restore it in Tools → Manage Note Types.")
-
-    field_count = len(notetype["flds"])
-    # Which CSV column fills each note-type field (1-based; 0 = leave empty).
-    # Field 1 <- word, field 2 <- translation; any further fields stay empty.
-    field_columns = [1, 2] + [0] * (field_count - 2)
-
-    return CsvMetadata(
-        delimiter=CsvMetadata.Delimiter.SEMICOLON,
-        force_delimiter=True,
-        is_html=True,
-        force_is_html=True,
-        deck_id=deck_id,
-        global_notetype=CsvMetadata.MappedNotetype(id=notetype["id"], field_columns=field_columns),
-        dupe_resolution=dupe_resolution,
-    )
-
-
-def format_import_log(response: ImportLogWithChanges) -> str:
-    summary = response.log
-
-    added = len(summary.new)
-    updated = 0
-    skipped = 0
-
-    matched = len(summary.first_field_match)
-
-    if summary.dupe_resolution == CsvMetadata.DupeResolution.UPDATE:
-        updated += matched
-    elif summary.dupe_resolution == CsvMetadata.DupeResolution.DUPLICATE:
-        added += matched
-    else:
-        skipped += matched
-
-    return "\n".join(
-        [
-            "Importing complete.",
-            f"Notes added: {added}",
-            f"Notes updated: {updated}",
-            f"Notes skipped: {skipped}",
-            f"Identical duplicates: {len(summary.duplicate)}",
-        ]
-    )
+    showText(csv_importer.format_import_log(response))
 
 
 def get_db_path() -> str | None:

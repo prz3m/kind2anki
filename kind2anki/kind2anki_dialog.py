@@ -114,7 +114,10 @@ def import_to_anki(temp_file_path: str, deck_id: DeckId, dupe_resolution: DupeRe
 
 def build_csv_metadata(deck_id: DeckId, dupe_resolution: DupeResolutionValue) -> CsvMetadata:
     assert mw.col is not None
-    notetype = mw.col.models.current()
+    notetype = mw.col.models.by_name("Basic")
+    if notetype is None:
+        raise LookupError("The Basic note type was not found. Restore it in Tools → Manage Note Types.")
+
     field_count = len(notetype["flds"])
     # Which CSV column fills each note-type field (1-based; 0 = leave empty).
     # Field 1 <- word, field 2 <- translation; any further fields stay empty.
@@ -133,12 +136,27 @@ def build_csv_metadata(deck_id: DeckId, dupe_resolution: DupeResolutionValue) ->
 
 def format_import_log(response: ImportLogWithChanges) -> str:
     summary = response.log
+
+    added = len(summary.new)
+    updated = 0
+    skipped = 0
+
+    matched = len(summary.first_field_match)
+
+    if summary.dupe_resolution == CsvMetadata.DupeResolution.UPDATE:
+        updated += matched
+    elif summary.dupe_resolution == CsvMetadata.DupeResolution.DUPLICATE:
+        added += matched
+    else:
+        skipped += matched
+
     return "\n".join(
         [
             "Importing complete.",
-            f"Notes added: {len(summary.new)}",
-            f"Notes updated: {len(summary.updated)}",
-            f"Duplicates: {len(summary.duplicate)}",
+            f"Notes added: {added}",
+            f"Notes updated: {updated}",
+            f"Notes skipped: {skipped}",
+            f"Identical duplicates: {len(summary.duplicate)}",
         ]
     )
 

@@ -1,0 +1,6 @@
+pytest>=7.4
+freezegun>=1.5
+aqt==26.5
+ruff==0.12.1
+pyright==1.1.411
+pre-commit==4.2.0

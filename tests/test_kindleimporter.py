@@ -69,14 +69,6 @@ def test_include_usage_embeds_the_bolded_example_sentence(db_path):
     assert entry.endswith("<hr>")
 
 
-def test_fetch_without_translation_keeps_words_but_leaves_them_untranslated(db_path):
-    importer = KindleImporter(db_path, "pl", import_days=DAYS_COVERING_ALL_WORDS)
-    importer.fetch_words_from_db_without_translation()
-
-    assert set(importer.words) == set(WORDS)
-    assert importer.translated == [""] * len(WORDS)
-
-
 def test_create_temporary_file_writes_word_then_translation_per_line(db_path, monkeypatch):
     monkeypatch.setattr(kindleimporter, "translate", lambda word, to_lang=None: f"translated-{word}")
 
@@ -84,6 +76,7 @@ def test_create_temporary_file_writes_word_then_translation_per_line(db_path, mo
     importer.translate_words_from_db()
     path = importer.create_temporary_file()
 
+    assert path is not None
     lines = Path(path).read_text(encoding="utf-8").splitlines()
     assert len(lines) == len(WORDS)
     first_word = importer.words[0]
@@ -104,6 +97,7 @@ def test_create_temporary_file_quotes_translation_containing_the_delimiter(db_pa
     importer.translate_words_from_db()
     path = importer.create_temporary_file()
 
+    assert path is not None
     with open(path, encoding="utf-8", newline="") as f:
         rows = list(csv.reader(f, delimiter=";"))
 

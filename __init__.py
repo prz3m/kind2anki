@@ -1,9 +1,8 @@
 from aqt import mw
-from aqt.qt import QAction
-from aqt.utils import qconnect
+from aqt.qt import QAction, qconnect
 
 from .kind2anki.kind2anki_dialog import Kind2AnkiDialog
 
 action = QAction("kind2anki", mw)
-qconnect(action.triggered, Kind2AnkiDialog)
+qconnect(action.triggered, lambda: Kind2AnkiDialog().exec())
 mw.form.menuTools.addAction(action)

@@ -8,17 +8,13 @@ import sqlite3
 import string
 import tempfile
 import time
-from functools import partial
 from sys import platform
+from urllib.error import URLError
 
-from .translate import translate
-
-
-def translate_word(word, target_language):
-    return str(translate(word, to_lang=target_language))
+from .translate import TranslationUnchanged, translate
 
 
-def get_kindle_vocab_path():
+def get_kindle_vocab_path() -> str:
     try:
         if platform == "win32":
             for drive in string.ascii_uppercase:
@@ -41,40 +37,46 @@ def get_kindle_vocab_path():
 
 
 class KindleImporter:
-    def __init__(self, db_path, target_language, include_usage=False, do_translate=True, import_days=5):
+    def __init__(
+        self,
+        db_path: str,
+        target_language: str,
+        include_usage: bool = False,
+        do_translate: bool = True,
+        import_days: int = 5,
+    ) -> None:
         self.db_path = db_path
         self.target_language = target_language
         self.include_usage = include_usage
         self.do_translate = do_translate
         self.timestamp = self._create_timestamp(import_days) * 1000
+        self.words: list[str] = []
+        self.word_keys: list[int] = []
+        self.translated: list[str] = []
 
-    def _create_timestamp(self, days):
+    def _create_timestamp(self, days: int) -> int:
         d = datetime.date.today() - datetime.timedelta(days=days)
         return int(time.mktime(d.timetuple()))
 
-    def translate_words_from_db(self):
-        self._get_words_from_db()
-        self.translated = self._translate_words()
-
-    def fetch_words_from_db_without_translation(self):
-        self._get_words_from_db()
-        self.translated = len(self.words) * [""]
-
-    def _get_words_from_db(self):
+    def translate_words_from_db(self) -> None:
         conn = sqlite3.connect(self.db_path)
+        try:
+            self._get_words_from_db(conn)
+            self.translated = self._translate_words(conn)
+        finally:
+            conn.close()
+
+    def _get_words_from_db(self, conn: sqlite3.Connection) -> None:
         c = conn.cursor()
-        c.execute("SELECT word, id FROM words WHERE timestamp > ?", (str(self.timestamp),))
+        c.execute("SELECT word, id FROM words WHERE timestamp > ?", (self.timestamp,))
         words_and_ids = c.fetchall()
         self.words = [w[0] for w in words_and_ids]
         self.word_keys = [w[1] for w in words_and_ids]
-        conn.close()
 
-    def _translate_words(self):
-        translated = []
-        translate = partial(translate_word, target_language=self.target_language)
-        conn = sqlite3.connect(self.db_path)
+    def _translate_words(self, conn: sqlite3.Connection) -> list[str]:
+        translated: list[str] = []
         c = conn.cursor()
-        for word, word_key in zip(self.words, self.word_keys, strict=False):
+        for word, word_key in zip(self.words, self.word_keys, strict=True):
             translated_word = ""
             if self.include_usage:
                 c.execute("SELECT usage FROM LOOKUPS WHERE word_key = ?", [word_key])
@@ -87,21 +89,23 @@ class KindleImporter:
 
             if self.do_translate:
                 try:
-                    translated_word += html.escape(translate(word), quote=False)
+                    translated_word += html.escape(translate(word, to_lang=self.target_language), quote=False)
+                except TranslationUnchanged:
+                    translated_word += html.escape(word, quote=False)
+                except URLError:
+                    raise
                 except Exception:
                     translated_word += "cannot translate"
 
             translated.append(translated_word)
 
-        conn.close()
         return translated
 
-    def create_temporary_file(self):
+    def create_temporary_file(self) -> str | None:
         if len(self.words) == 0:
             return None
-        path = os.path.join(tempfile.gettempdir(), "kind2anki_temp.csv")
-        with open(path, "w", encoding="utf-8", newline="") as f:
+        with tempfile.NamedTemporaryFile("w", encoding="utf-8", newline="", suffix=".csv", delete=False) as f:
             writer = csv.writer(f, delimiter=";", lineterminator="\n")
-            for w, t in zip(self.words, self.translated, strict=False):
+            for w, t in zip(self.words, self.translated, strict=True):
                 writer.writerow([html.escape(w, quote=False), t])
-        return path
+        return f.name

@@ -20,15 +20,15 @@ class TranslatorError(Exception):
     pass
 
 
-class NotTranslated(TranslatorError):
+class TranslationUnchanged(TranslatorError):
     """Raised when text is unchanged after translation. This may be due to the language
-    being unsupported by the translator.
+    being unsupported by the translator, or the word being identical in both languages.
     """
 
     pass
 
 
-_base_url = "http://translate.google.com/translate_a/t?client=webapp&dt=bd&dt=ex&dt=ld&dt=md&dt=qca&dt=rw&dt=rm&dt=ss&dt=t&dt=at&ie=UTF-8&oe=UTF-8&otf=2&ssel=0&tsel=0&kc=1"
+_base_url = "https://translate.google.com/translate_a/t?client=webapp&dt=bd&dt=ex&dt=ld&dt=md&dt=qca&dt=rw&dt=rm&dt=ss&dt=t&dt=at&ie=UTF-8&oe=UTF-8&otf=2&ssel=0&tsel=0&kc=1"
 
 headers = {
     "Accept": "*/*",
@@ -40,7 +40,13 @@ headers = {
 }
 
 
-def translate(source, from_lang="auto", to_lang="en", host=None, type_=None):
+def translate(
+    source: str,
+    from_lang: str = "auto",
+    to_lang: str = "en",
+    host: str | None = None,
+    type_: str | None = None,
+) -> str:
     data = {"q": source}
     url = f"{_base_url}&sl={from_lang}&tl={to_lang}&hl={to_lang}&tk={_calculate_tk(source)}"
     response = _request(url, host=host, type_=type_, data=data)
@@ -56,7 +62,7 @@ def translate(source, from_lang="auto", to_lang="en", host=None, type_=None):
             else:
                 raise TranslatorError("Unknown format of response data")
         except IndexError:
-            pass
+            raise TranslatorError("Unknown format of response data") from None
     _validate_translation(source, result)
     return result
 
@@ -66,9 +72,9 @@ def _validate_translation(source, result):
     is different than the original string.
     """
     if not result:
-        raise NotTranslated("Translation API returned and empty response.")
+        raise TranslatorError("Translation API returned an empty response.")
     if result.strip() == source.strip():
-        raise NotTranslated("Translation API returned the input string unchanged.")
+        raise TranslationUnchanged("Translation API returned the input string unchanged.")
 
 
 def _request(url, host=None, type_=None, data=None):

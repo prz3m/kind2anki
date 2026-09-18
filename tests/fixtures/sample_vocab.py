@@ -102,7 +102,7 @@ def build(db_path):
 
             book_id = BOOKS[i % len(BOOKS)][0]
             # Usage contains the word so the "include usage" path has something
-            # to bold; the semicolon exercises the ';' -> ',' sanitising.
+            # to bold; the semicolon exercises the CSV quoting.
             usage = f'The author chose the word "{word}" with care; a {word} sentence reads more clearly.'
             c.execute(
                 "INSERT INTO LOOKUPS (id, word_key, book_key, dict_key, pos, "

@@ -6,7 +6,7 @@ Note: Google Translate can improve its anti-abuse mechanisms in any moment, maki
 
 # Installation
 
-Extract files to ~/Anki/addons and restart Anki or go to  https://ankiweb.net/shared/info/1621749993 and follow instructions in Download section.
+In Anki, go to Tools -> Add-ons -> Get Add-ons... and enter the code `1621749993` (see https://ankiweb.net/shared/info/1621749993), then restart Anki.
 
 # Usage
 1. Go to Tools -> kind2anki
@@ -21,12 +21,12 @@ Extract files to ~/Anki/addons and restart Anki or go to  https://ankiweb.net/sh
  * specify behaviour in case of duplicates
  * check "Include usage example" if you want to have a sentence with the word included in your flashcard
  * uncheck "Translate words" if you wish to import words without translating them
- * specify target language. You can select from a list or enter appropriate code (you can check language codes here: http://www.transltr.org/api/getlanguagesfortranslate)
+ * specify target language. You can select from a list or enter appropriate code (you can check language codes here: https://cloud.google.com/translate/docs/languages)
  * change the number of days in "Import words not older than..." if you wish. The default numer is the number of days since last run of the add-on.
 
 3. Click Import
 
-4. Select a vocab.db file from your Kindle. In Linux, it should be in /media/username/Kindle/system/vocabulary. In Windows, find a letter assigned to your Kindle and enter system\vocabulary after it manually in the address bar (system folder is not visible), e.g. D:\system\vocabulary
+4. Select a vocab.db file from your Kindle. In Linux, it should be in /media/username/Kindle/system/vocabulary or /run/media/username/Kindle/system/vocabulary. In Windows, find a letter assigned to your Kindle and enter system\vocabulary after it manually in the address bar (system folder is not visible), e.g. D:\system\vocabulary
 
    ![Select DB](/../screenshots/3select_db.png?raw=true)
 

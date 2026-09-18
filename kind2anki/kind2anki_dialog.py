@@ -1,9 +1,11 @@
 import os
 import sqlite3
-import urllib
+import urllib.error
+from concurrent.futures import Future
 from typing import cast
 
-from anki.collection import CsvMetadata, ImportCsvRequest
+from anki.collection import CsvMetadata, ImportCsvRequest, ImportLogWithChanges
+from anki.decks import DeckId
 from aqt import mw
 from aqt.deckchooser import DeckChooser
 from aqt.qt import QDialog, QDialogButtonBox, QPushButton, qtmajor
@@ -19,6 +21,8 @@ else:
 from . import kindleimporter
 from .kindleimporter import KindleImporter
 
+DupeResolutionValue = CsvMetadata.DupeResolution.ValueType
+
 DUPE_RESOLUTION_BY_INDEX = (
     CsvMetadata.DupeResolution.UPDATE,
     CsvMetadata.DupeResolution.PRESERVE,
@@ -27,7 +31,7 @@ DUPE_RESOLUTION_BY_INDEX = (
 
 
 class Kind2AnkiDialog(QDialog):
-    def __init__(self):
+    def __init__(self) -> None:
         QDialog.__init__(self)
         self.mw = mw
         self.frm = kind2anki_ui.Ui_kind2ankiDialog()
@@ -37,6 +41,7 @@ class Kind2AnkiDialog(QDialog):
         cast(QDialogButtonBox, self.frm.button_box).addButton(b, QDialogButtonBox.ButtonRole.AcceptRole)
         self.deck = DeckChooser(self.mw, self.frm.deck_area, label=False)
 
+        assert self.mw.col is not None
         tr = self.mw.col.tr
         self.frm.import_mode.setItemText(0, tr.importing_update_existing_notes_when_first_field())
         self.frm.import_mode.setItemText(1, tr.importing_ignore_lines_where_first_field_matches())
@@ -46,14 +51,10 @@ class Kind2AnkiDialog(QDialog):
         self.days_since_last_run = last_run.get_days_since_last_run()
         self.frm.import_days.setValue(self.days_since_last_run)
 
-        self.exec()
-
-    def accept(self):
-        try:
-            db_path = get_db_path()
-        except OSError:
-            showInfo("DB file not selected, exiting")
-            self.close()
+    def accept(self) -> None:
+        db_path = get_db_path()
+        if db_path is None:
+            self.reject()
             return
 
         target_language = self.frm.language_select.currentText()
@@ -65,7 +66,7 @@ class Kind2AnkiDialog(QDialog):
         dupe_resolution = DUPE_RESOLUTION_BY_INDEX[import_mode]
         deck_id = self.deck.selectedId()
 
-        self.close()
+        super().accept()
 
         self.mw.progress.start(immediate=True, label="Processing...")
         self.mw.taskman.run_in_background(
@@ -74,13 +75,15 @@ class Kind2AnkiDialog(QDialog):
         )
 
 
-def translate_words(db_path, target_language, include_usage, do_translate, import_days):
+def translate_words(
+    db_path: str, target_language: str, include_usage: bool, do_translate: bool, import_days: int
+) -> str | None:
     kindle_importer = KindleImporter(db_path, target_language, include_usage, do_translate, import_days)
     kindle_importer.translate_words_from_db()
     return kindle_importer.create_temporary_file()
 
 
-def on_translated(fut, deck_id, dupe_resolution):
+def on_translated(fut: Future[str | None], deck_id: DeckId, dupe_resolution: DupeResolutionValue) -> None:
     mw.progress.finish()
     try:
         temp_file_path = fut.result()
@@ -97,17 +100,20 @@ def on_translated(fut, deck_id, dupe_resolution):
     mw.reset()
 
 
-def import_to_anki(temp_file_path, deck_id, dupe_resolution):
+def import_to_anki(temp_file_path: str, deck_id: DeckId, dupe_resolution: DupeResolutionValue) -> None:
+    assert mw.col is not None
     mw.progress.start(immediate=True, label="Importing...")
-    request = ImportCsvRequest(path=temp_file_path, metadata=build_csv_metadata(deck_id, dupe_resolution))
-    response = mw.col.import_csv(request)
-    mw.progress.finish()
-
-    os.remove(temp_file_path)
+    try:
+        request = ImportCsvRequest(path=temp_file_path, metadata=build_csv_metadata(deck_id, dupe_resolution))
+        response = mw.col.import_csv(request)
+    finally:
+        mw.progress.finish()
+        os.remove(temp_file_path)
     showText(format_import_log(response))
 
 
-def build_csv_metadata(deck_id, dupe_resolution):
+def build_csv_metadata(deck_id: DeckId, dupe_resolution: DupeResolutionValue) -> CsvMetadata:
+    assert mw.col is not None
     notetype = mw.col.models.current()
     field_count = len(notetype["flds"])
     # Which CSV column fills each note-type field (1-based; 0 = leave empty).
@@ -125,7 +131,7 @@ def build_csv_metadata(deck_id, dupe_resolution):
     )
 
 
-def format_import_log(response):
+def format_import_log(response: ImportLogWithChanges) -> str:
     summary = response.log
     return "\n".join(
         [
@@ -137,7 +143,7 @@ def format_import_log(response):
     )
 
 
-def get_db_path():
+def get_db_path() -> str | None:
     vocab_path = kindleimporter.get_kindle_vocab_path()
     if vocab_path == "":
         key = "Import"
@@ -146,7 +152,4 @@ def get_db_path():
         key = None
         dir = vocab_path
     db_path = getFile(mw, "Select db file", None, dir=dir, key=key, filter="*.db")
-    if not db_path:
-        raise OSError
-    db_path = str(db_path)
-    return db_path
+    return str(db_path) if db_path else None

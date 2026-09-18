@@ -1,0 +1,11 @@
+{
+    "include": ["__init__.py", "kind2anki", "tests"],
+    "exclude": [
+        "kind2anki/kind2anki_ui.py",
+        "kind2anki/kind2anki_ui_qt6.py",
+        "kind2anki/translate.py"
+    ],
+    "extraPaths": ["tests/fixtures"],
+    "venvPath": ".",
+    "venv": ".venv"
+}

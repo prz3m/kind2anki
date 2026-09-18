@@ -1,8 +1,4 @@
-from __future__ import annotations
-
 from typing import TYPE_CHECKING, Any
-
-from anki.collection import CsvMetadata
 
 if TYPE_CHECKING:
     from aqt.addons import AddonManager
@@ -10,7 +6,7 @@ if TYPE_CHECKING:
 LAST_RUN_KEY = "lastRun"
 IMPORT_MODE_KEY = "importMode"
 
-DEFAULT_IMPORT_MODE = CsvMetadata.DupeResolution.PRESERVE
+DEFAULT_IMPORT_MODE = 1  # = CsvMetadata.DupeResolution.PRESERVE
 
 ADDON_PACKAGE = __name__.split(".")[0]
 
